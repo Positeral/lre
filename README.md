@@ -1,0 +1,1 @@
+LRE (Lexicographic REpresentation) - is a rapid serializer of numbers and strings for composite keys. It converts a set of values into special hexadecimal string providing a natural order for numbers at lexicographically comparing.
