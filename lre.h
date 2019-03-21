@@ -218,10 +218,10 @@ int lrex_count_nbytes(uint64_t value) {
 	(value > UINT64_C(0xff)) + \
 	(value > UINT64_C(0xffff)) + \
 	(value > UINT64_C(0xffffff)) + \
-    (value > UINT64_C(0xffffffff)) + \
-    (value > UINT64_C(0xffffffffff)) + \
-    (value > UINT64_C(0xffffffffffff)) + \
-    (value > UINT64_C(0xffffffffffffff)) + 1;
+	(value > UINT64_C(0xffffffff)) + \
+	(value > UINT64_C(0xffffffffff)) + \
+	(value > UINT64_C(0xffffffffffff)) + \
+	(value > UINT64_C(0xffffffffffffff)) + 1;
 #endif
 }
 
