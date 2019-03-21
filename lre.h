@@ -34,7 +34,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <stdlib.h>
 #include <float.h>
+#include <math.h>
+
 #include "pstdint.h"
+
+
+#ifdef _MSC_VER
+	#define isnan _isnan
+	#define isinf(x) (!_finite(x))
+#endif
 
 
 #define LRE_OK   0
