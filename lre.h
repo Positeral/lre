@@ -36,7 +36,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <float.h>
 #include <math.h>
 
-#include "pstdint.h"
+/* Portable stdint.h provide cross-compiler
+ * type definitions and printf() number modifiers */
+ #include "pstdint.h"
 
 
 #ifdef _MSC_VER
@@ -45,10 +47,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+/* Detalized error code is in lre_error_t */
 #define LRE_OK   0
 #define LRE_FAIL 1
 
 
+/* Code of delimiter must be must be smaller than all other
+ * characters from HEX and tags */
 #if !defined(LRE_SEP)
 	#define LRE_SEP '+'
 #endif
@@ -69,7 +74,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	#define lre_std_malloc malloc
 #endif
 
-
 #if !defined(lre_std_calloc)
 	#define lre_std_calloc calloc
 #endif
@@ -83,11 +87,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+/* Branch prediction macro for if-statements.
+ * Almost all branches in this library are well predictable. */
 #if defined(__GNUC__) || defined(__clang__)
 	#if !defined(lre_likely)
 		#define lre_likely(x) __builtin_expect(!!(x), 1)
 	#endif
-	
+
 	#if !defined(lre_unlikely)
 		#define lre_unlikely(x) __builtin_expect(!!(x), 0)
 	#endif
@@ -95,7 +101,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	#if !defined(lre_likely)
 		#define lre_likely(x) (x)
 	#endif
-	
+
 	#if !defined(lre_unlikely)
 		#define lre_unlikely(x) (x)
 	#endif
@@ -111,6 +117,7 @@ extern "C" {
 static const uint8_t lrex_hextab[16] = {
 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e','f'
 };
+
 
 /* Decoding */
 static const uint8_t lrex_hexrev[256] = {
@@ -199,24 +206,21 @@ int lre_fail(lre_error_t error, lre_error_t *to) {
  */
 
 
-/* @brief Returns positive value of negative value.
- */
+/* @brief Returns positive value of negative value. */
 lre_decl
 uint64_t lrex_negate_negative(int64_t value) {
 	return (uint64_t) (-1 - value) + 1;
 }
 
 
-/* @brief Returns negative value of positive value.
- */
+/* @brief Returns negative value of positive value. */
 lre_decl
 int64_t lrex_negate_positive(uint64_t value) {
 	return -((int64_t) (value - 1)) - 1;
 }
 
 
-/* @brief Counting of significant bytes, always between 1, 8.
- */
+/* @brief Counting of significant bytes, always between 1, 8. */
 lre_decl
 int lrex_count_nbytes(uint64_t value) {
 #if defined(__GNUC__) || defined(__clang__)
@@ -348,8 +352,7 @@ void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, int XOR) {
 
 
 /* LRE MEMORY BUFFER.
- * Normally, it is long-lived objects in one thread.
- */
+ * Normally, it is long-lived objects in one thread. */
 typedef struct {
 	uint8_t *data;     /* Payload */
 	size_t   size;     /* Payload length */
@@ -546,8 +549,7 @@ int lre_pack_double(lre_buffer_t *buf, double value, lre_error_t *error) {
 
 
 /* LRE end handlers for unpack.
- * Normally, it is long-lived objects.
- */
+ * Normally, it is long-lived objects. */
 typedef struct {
 	void *app_private;
 	int (*handle_int)   (void *app_private, int64_t value);
