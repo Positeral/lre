@@ -170,6 +170,7 @@ typedef enum {
 	LRE_ERROR_LENGTH,
 	LRE_ERROR_TAG,
 	LRE_ERROR_SIGN,
+	LRE_ERROR_MOD,
 	LRE_ERROR_HANDLER
 } lre_error_t;
 
@@ -184,6 +185,7 @@ const char *lre_strerror(lre_error_t error) {
 		case LRE_ERROR_LENGTH:     return "Invalid length of data";
 		case LRE_ERROR_TAG:        return "Unknown tag";
 		case LRE_ERROR_SIGN:       return "Unknown sign";
+		case LRE_ERROR_MOD:        return "Unknown string modifier";
 		case LRE_ERROR_HANDLER:    return "Final value cannot be handled";
 		default:                   return "Unknown error";
 	}
@@ -561,7 +563,26 @@ typedef struct {
 
 lre_decl // TODO
 int lre_handle_string(const lre_handlers_t *hns, const uint8_t *src, size_t len, lre_error_t *error) {
-	printf("String: \n");
+	lre_mod_t modifier;
+	
+	if (lre_unlikely(!len || (len - 1) % 2)) {
+		return lre_fail(LRE_ERROR_LENGTH, error);
+	}
+	
+	/* Last character is a modifier value */
+	modifier = (lre_mod_t) src[--len];
+	
+	switch (modifier) {
+		case LRE_MOD_STRING_UTF8: break;
+		case LRE_MOD_STRING_RAW:  break;
+		case LRE_MOD_DEFAULT:     break;
+		default: return lre_fail(LRE_ERROR_MOD, error);
+	}
+	
+	if (lre_unlikely(hns->handle_str(hns->app_private, src, len, modifier) != LRE_OK)) {
+		return lre_fail(LRE_ERROR_HANDLER, error);
+	}
+	
 	return LRE_OK;
 }
 
