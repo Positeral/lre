@@ -353,6 +353,34 @@ void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, int XOR) {
 }
 
 
+/*
+ * */
+typedef struct {
+	const uint8_t *src;
+	const uint8_t *end;
+} lre_slice_t;
+
+
+/**
+ * @brief Returns length of slice
+ * @param slice Pointer to lre_slice_t object
+ */
+lre_decl
+ptrdiff_t lre_slice_len(const lre_slice_t *slice) {
+	return slice->end - slice->src;
+}
+
+
+/**
+ * @brief Returns last byte and shifts end of slice
+ * @param slice Pointer to lre_slice_t object
+ */
+lre_decl
+uint8_t lre_slice_pop(lre_slice_t *slice) {
+	return *(--slice->end);
+}
+
+
 /* LRE MEMORY BUFFER.
  * Normally, it is long-lived objects in one thread. */
 typedef struct {
@@ -550,6 +578,15 @@ int lre_pack_double(lre_buffer_t *buf, double value, lre_error_t *error) {
 }
 
 
+/*
+ * */
+typedef struct {
+	lre_sign_t sign;
+	ptrdiff_t  len_integral; /* Number of encoded bytes */
+	ptrdiff_t  len_fraction; /* Number of encoded bytes afetr integer part */
+} lre_number_info_t;
+
+
 /* LRE end handlers for unpack.
  * Normally, it is long-lived objects. */
 typedef struct {
@@ -588,8 +625,7 @@ int lre_handle_string(const lre_handlers_t *hns, const uint8_t *src, size_t len,
 
 
 lre_decl // TODO
-int lre_handle_number(const lre_handlers_t *hns, const uint8_t *src, size_t len, lre_error_t *error) {	
-	printf("Number: \n");
+int lre_handle_number(const lre_handlers_t *hns, const uint8_t *src, size_t len, lre_error_t *error) {
 	return LRE_OK;
 }
 
