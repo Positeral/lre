@@ -638,7 +638,7 @@ int lre_tokenize(const lre_handlers_t *hns, const uint8_t *src, size_t size, lre
 	const uint8_t *end = src + size;
 	
 	while ((sep = memchr(src, LRE_SEP, end - sep))) {
-		uint8_t   tag = *src++;
+		lre_tag_t tag = *src++;
 		ptrdiff_t len = sep - src; /* Length without LRE_SEP */
 		
 		if (lre_unlikely(len < 1)) {
