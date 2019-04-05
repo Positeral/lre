@@ -593,21 +593,21 @@ typedef struct {
 	void *app_private;
 	int (*handle_int)   (void *app_private, int64_t value);
 	int (*handle_double)(void *app_private, double value);
-	int (*handle_str)   (void *app_private, const uint8_t *hex, size_t len, lre_mod_t mod);
-	int (*handle_number)(void *app_private, const uint8_t *hex, size_t len, size_t ilen, lre_sign_t sign);
+	int (*handle_str)   (void *app_private, lre_slice_t *slice, lre_mod_t mod);
+	int (*handle_number)(void *app_private, lre_slice_t *slice, lre_sign_t sign);
 } lre_handlers_t;
 
 
 lre_decl // TODO
-int lre_handle_string(const lre_handlers_t *hns, const uint8_t *src, size_t len, lre_error_t *error) {
+int lre_handle_string(const lre_handlers_t *hns, lre_slice_t *slice, lre_error_t *error) {
 	lre_mod_t modifier;
 	
-	if (lre_unlikely(!len || (len - 1) % 2)) {
+	if (lre_unlikely((lre_slice_len(slice) - 1) % 2)) {
 		return lre_fail(LRE_ERROR_LENGTH, error);
 	}
 	
 	/* Last character is a modifier value */
-	modifier = (lre_mod_t) src[--len];
+	modifier = (lre_mod_t) lre_slice_pop(slice);
 	
 	switch (modifier) {
 		case LRE_MOD_STRING_UTF8: break;
@@ -616,7 +616,7 @@ int lre_handle_string(const lre_handlers_t *hns, const uint8_t *src, size_t len,
 		default: return lre_fail(LRE_ERROR_MOD, error);
 	}
 	
-	if (lre_unlikely(hns->handle_str(hns->app_private, src, len, modifier) != LRE_OK)) {
+	if (lre_unlikely(hns->handle_str(hns->app_private, slice, modifier) != LRE_OK)) {
 		return lre_fail(LRE_ERROR_HANDLER, error);
 	}
 	
@@ -625,7 +625,7 @@ int lre_handle_string(const lre_handlers_t *hns, const uint8_t *src, size_t len,
 
 
 lre_decl // TODO
-int lre_handle_number(const lre_handlers_t *hns, const uint8_t *src, size_t len, lre_error_t *error) {
+int lre_handle_number(const lre_handlers_t *hns, lre_slice_t *slice, lre_error_t *error) {
 	return LRE_OK;
 }
 
@@ -638,23 +638,23 @@ int lre_tokenize(const lre_handlers_t *hns, const uint8_t *src, size_t size, lre
 	const uint8_t *end = src + size;
 	
 	while ((sep = memchr(src, LRE_SEP, end - sep))) {
-		lre_tag_t tag = *src++;
-		ptrdiff_t len = sep - src; /* Length without LRE_SEP */
+		lre_tag_t   tag   = lrex_read_char(&src);
+		lre_slice_t slice = {src, sep};
 		
-		if (lre_unlikely(len < 1)) {
+		if (lre_unlikely(lre_slice_len(&slice) < 1)) {
 			return lre_fail(LRE_ERROR_LENGTH, error);
 		}
 		
 		switch (tag) {
 			case LRE_TAG_STRING:
-				if (lre_unlikely(lre_handle_string(hns, src, len, error) != LRE_OK)) {
+				if (lre_unlikely(lre_handle_string(hns, &slice, error) != LRE_OK)) {
 					return LRE_FAIL;
 				}
 				
 				break;
 			
 			case LRE_TAG_NUMBER:
-				if (lre_unlikely(lre_handle_number(hns, src, len, error) != LRE_OK)) {
+				if (lre_unlikely(lre_handle_number(hns, &slice, error) != LRE_OK)) {
 					return LRE_FAIL;
 				}
 				
