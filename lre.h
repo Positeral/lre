@@ -482,7 +482,7 @@ void lre_buffer_close(lre_buffer_t *buf) {
 
 
 lre_decl
-int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, int mod, lre_error_t *error) {
+int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mod, lre_error_t *error) {
 	/* tag(1) + string(len*2) + modifier(1) + separator(1) */
 	if (lre_likely(lre_buffer_require(buf, (1+(len*2)+1+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
