@@ -304,52 +304,35 @@ uint8_t lrex_read_char(const uint8_t **src) {
 
 
 lre_decl
-uint8_t lrex_read_uint8(const uint8_t **src) {
-	const uint8_t *ptr = *src;
+uint8_t lrex_read_uint8(const uint8_t **src, uint8_t mask) {
 	*src += 2;
-	
-	return (lrex_hexrev[ptr[0]] << 4) | lrex_hexrev[ptr[1]];
+	return ((lrex_hexrev[(*src)[-2]] << 4) | lrex_hexrev[(*src)[-1]]) ^ mask;
 }
 
 
 lre_decl
-uint16_t lrex_read_uint16(const uint8_t **src) {
-	const uint8_t *ptr = *src;
-	*src += 4;
-	
-	return \
-		(((lrex_hexrev[ptr[0]] << 4) | lrex_hexrev[ptr[1]]) << 8) | \
-		 ((lrex_hexrev[ptr[2]] << 4) | lrex_hexrev[ptr[3]]);
+uint16_t lrex_read_uint16(const uint8_t **src, uint8_t mask) {
+	return (lrex_read_uint8(src, mask) << 8) | lrex_read_uint8(src, mask);
 }
 
 
 lre_decl
-uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes) {
-	const uint8_t *ptr = *src;
+uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes, uint8_t mask) {
 	uint64_t value = 0;
 	
 	while (nbytes--) {
-		int a = lrex_hexrev[*ptr++];
-		int b = lrex_hexrev[*ptr++];
-		value = (value << 8) | ((a << 4) | b);
+		value = (value << 8) | lrex_read_uint8(src, mask);
 	}
 	
-	*src = ptr;
 	return value;
 }
 
 
 lre_decl
-void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, int XOR) {
-	const uint8_t *ptr = *src;
-	
+void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mask) {
 	while (nbytes--) {
-		int a = lrex_hexrev[*ptr++];
-		int b = lrex_hexrev[*ptr++];
-		*dst++ = (uint8_t) ((a << 4) | b) ^ XOR;
+		*dst++ = lrex_read_uint8(src, mask);
 	}
-	
-	*src = ptr;
 }
 
 
