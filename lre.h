@@ -564,7 +564,8 @@ int lre_pack_double(lre_buffer_t *buf, double value, lre_error_t *error) {
 /*
  * */
 typedef struct {
-	lre_sign_t sign;
+	lre_sign_t sign;            /* Sign byte */
+	uint8_t    mask;            /* Bitwise XOR value (defined by sign)*/
 	ptrdiff_t  nbytes_integral; /* Number of encoded bytes */
 	ptrdiff_t  nbytes_fraction; /* Number of encoded bytes after integer part */
 } lre_number_info_t;
