@@ -248,52 +248,33 @@ void lrex_write_char(uint8_t **dst, uint8_t value){
 
 lre_decl
 void lrex_write_uint8(uint8_t **dst, uint8_t value) {
-	uint8_t *to = *dst;
-
-	*to++ = lrex_hextab[value >> 4];
-	*to++ = lrex_hextab[value & 0xf];
-	*dst = to;
+	lrex_write_char(dst, lrex_hextab[value >> 4]);
+	lrex_write_char(dst, lrex_hextab[value & 0xf]);
 }
 
 
 lre_decl
 void lrex_write_uint16(uint8_t **dst, uint16_t value) {
-	uint8_t *to = *dst;
-
-	*to++ = lrex_hextab[(value >> 12) & 0xf];
-	*to++ = lrex_hextab[(value >>  8) & 0xf];
-	*to++ = lrex_hextab[(value >>  4) & 0xf];
-	*to++ = lrex_hextab[value & 0xf];
-	*dst = to;
+	lrex_write_uint8(dst, value >> 8);
+	lrex_write_uint8(dst, value & 0xff);
 }
 
 
 lre_decl
 void lrex_write_uint64n(uint8_t **dst, uint64_t value, size_t nbytes) {
-	uint8_t *to = *dst;
-	
 	while (nbytes--) {
-		int c = (value >> (nbytes << 3)) & 0xff;
-		
-		*to++ = lrex_hextab[c >> 4];
-		*to++ = lrex_hextab[c & 0xf];
+		int byte = (value >> (nbytes << 3)) & 0xff;
+		lrex_write_uint8(dst, byte);
 	}
-	
-	*dst = to;
 }
 
 
 lre_decl
-void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, int XOR) {
-	uint8_t *to = *dst;
-	
+void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask) {
 	while (len--) {
-		int c = *src++ ^ XOR;
-		*to++ = lrex_hextab[c >> 4];
-		*to++ = lrex_hextab[c & 0xf];
+		int byte = *src++ ^ mask;
+		lrex_write_uint8(dst, byte);
 	}
-	
-	*dst = to;
 }
 
 
@@ -305,14 +286,17 @@ uint8_t lrex_read_char(const uint8_t **src) {
 
 lre_decl
 uint8_t lrex_read_uint8(const uint8_t **src, uint8_t mask) {
-	*src += 2;
-	return ((lrex_hexrev[(*src)[-2]] << 4) | lrex_hexrev[(*src)[-1]]) ^ mask;
+	int a = lrex_hexrev[lrex_read_char(src)];
+	int b = lrex_hexrev[lrex_read_char(src)];
+	return ((a << 4) | b) ^ mask;
 }
 
 
 lre_decl
 uint16_t lrex_read_uint16(const uint8_t **src, uint8_t mask) {
-	return (lrex_read_uint8(src, mask) << 8) | lrex_read_uint8(src, mask);
+	int a = lrex_read_uint8(src, mask);
+	int b = lrex_read_uint8(src, mask);
+	return (a << 8) | b;
 }
 
 
