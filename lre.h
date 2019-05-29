@@ -269,6 +269,16 @@ void lrex_write_uint64n(uint8_t **dst, uint64_t value, size_t nbytes) {
 }
 
 
+void lrex_write_decimal(uint8_t **dst, uint64_t value, size_t ndigits) {
+	uint8_t *ptr = (*dst += ndigits);
+
+	while (ndigits--) {
+		*--ptr = '0' + (value % 10);
+		value /= 10;
+	}
+}
+
+
 lre_decl
 void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask) {
 	while (len--) {
@@ -308,6 +318,18 @@ uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes, uint8_t mask) {
 		value = (value << 8) | lrex_read_uint8(src, mask);
 	}
 	
+	return value;
+}
+
+
+uint64_t lrex_read_decimal(const uint8_t **src, size_t ndigits) {
+	uint64_t value = 0;
+
+	while (ndigits--) {
+		value *= 10;
+		value += lrex_read_char(src) - '0';
+	}
+
 	return value;
 }
 
