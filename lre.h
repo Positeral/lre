@@ -648,7 +648,7 @@ int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
 
 
 lre_decl
-int lre_pack_double(lre_buffer_t *buf, double value, lre_error_t *error) {
+int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 	if (lre_unlikely(lre_isnan(value))) {
 		return lre_fail(LRE_ERROR_NAN, error);
 	}
@@ -718,10 +718,10 @@ typedef struct {
  * Normally, it is long-lived objects. */
 typedef struct {
 	void *app_private;
-	int (*handle_int)   (void *app_private, int64_t value);
-	int (*handle_double)(void *app_private, double value);
-	int (*handle_str)   (void *app_private, lre_slice_t *slice, lre_mod_t mod);
-	int (*handle_number)(void *app_private, lre_slice_t *slice, lre_number_info_t *info);
+	int (*handler_int)   (void *app_private, int64_t value);
+	int (*handler_float) (void *app_private, double value);
+	int (*handler_str)   (void *app_private, lre_slice_t *slice, lre_mod_t mod);
+	int (*handler_number)(void *app_private, lre_slice_t *slice, lre_number_info_t *info);
 } lre_handlers_t;
 
 
@@ -743,7 +743,7 @@ int lre_handle_string(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 		default: return lre_fail(LRE_ERROR_MOD, error);
 	}
 	
-	if (lre_unlikely(hns->handle_str(hns->app_private, slice, modifier) != LRE_OK)) {
+	if (lre_unlikely(hns->handler_str(hns->app_private, slice, modifier) != LRE_OK)) {
 		return lre_fail(LRE_ERROR_HANDLER, error);
 	}
 	
