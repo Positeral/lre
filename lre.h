@@ -457,13 +457,13 @@ void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mas
 
 lre_decl
 const uint8_t *lrex_memsep(const uint8_t *src, size_t size) {
-	const uint8_t *p = memchr(src, LRE_SEP_POSITIVE, size);
-	
-	if (lre_likely(p)) {
-		return p;
+	for (; size; size--, src++) {
+		if (*src == LRE_SEP_POSITIVE || *src == LRE_SEP_NEGATIVE) {
+			return src;
+		}
 	}
 	
-	return memchr(src, LRE_SEP_NEGATIVE, size);
+	return 0;
 }
 
 /*
