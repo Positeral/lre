@@ -754,7 +754,9 @@ int lre_handle_string(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 lre_decl // TODO
 int lre_handle_number(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
 	uint8_t mask;
-	lre_number_info_t info = {tag};
+	uint64_t integral;
+	lre_number_info_t info = {tag, 0, 0};
+	lre_slice_t srcslice = *slice;
 	
 	switch (tag) {
 		case LRE_TAG_NUMBER_POSITIVE_BIG:
@@ -770,10 +772,61 @@ int lre_handle_number(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 	}
 	else {
 		mask = 0x00;
-		info.nbytes_integral = lrex_tag_by_nbytes_positive(tag);
+		info.nbytes_integral = lrex_nbytes_by_tag_positive(tag);
 	}
+
+	info.ndigits_fraction = lre_slice_len(slice) - (info.nbytes_integral * 2);
+
+	char c[30] = {0};
+	memcpy(c, slice->src, lre_slice_len(slice));
+	printf("slice: %s\n", c);
+	printf("mask: %x\n", mask);
+	printf("info.nbytes_integral:  %li\n", info.nbytes_integral);
+	printf("info.ndigits_fraction: %li\n", info.ndigits_fraction);
 	
-	
+	if (lre_unlikely(info.ndigits_fraction < 0)) {
+		return lre_fail(LRE_ERROR_LENGTH, error);
+	}
+
+	/* Float-point */
+	if (info.ndigits_fraction) {
+		if (info.nbytes_integral > 6 || info.ndigits_fraction > 15) {
+			return lre_fail(LRE_ERROR_RANGE, error);
+		}
+
+		integral = lrex_read_uint64n(&slice->src, info.nbytes_integral, mask);
+	}
+	/* Integer */
+	else {
+		if (lre_unlikely(info.nbytes_integral > 8)) {
+			return lre_fail(LRE_ERROR_RANGE, error);
+		}
+
+		integral = lrex_read_uint64n(&slice->src, info.nbytes_integral, mask);
+
+		if (lrex_tag_is_negative(tag)) {
+			int64_t negative;
+
+			if (lre_unlikely(integral > UINT64_C(9223372036854775808))) {
+				return lre_fail(LRE_ERROR_RANGE, error);
+			}
+
+			negative = lrex_negate_positive(integral);
+
+			if (lre_unlikely(hns->handler_int(hns->app_private, negative) != LRE_OK)) {
+				return lre_fail(LRE_ERROR_HANDLER, error);
+			}
+		}
+		else {
+			if (lre_unlikely(integral > UINT64_C(9223372036854775807))) {
+				return lre_fail(LRE_ERROR_RANGE, error);
+			}
+
+			if (lre_unlikely(hns->handler_int(hns->app_private, integral) != LRE_OK)) {
+				return lre_fail(LRE_ERROR_HANDLER, error);
+			}
+		}
+	}
 	
 	return LRE_OK;
 }
