@@ -714,19 +714,23 @@ typedef struct {
 } lre_number_info_t;
 
 
+typedef struct lre_loader_t lre_loader_t;
+
 /* LRE end handlers for unpack.
  * Normally, it is long-lived objects. */
-typedef struct {
+typedef struct lre_loader_t {
 	void *app_private;
-	int (*handler_int)   (void *app_private, int64_t value);
-	int (*handler_float) (void *app_private, double value);
-	int (*handler_str)   (void *app_private, lre_slice_t *slice, lre_mod_t mod);
-	int (*handler_number)(void *app_private, lre_slice_t *slice, lre_number_info_t *info);
-} lre_handlers_t;
+	int (*handler_int)     (lre_loader_t *loader, int64_t value);
+	int (*handler_float)   (lre_loader_t *loader, double value);
+	int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod);
+	int (*handler_inf)     (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
+	int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
+	int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
+} lre_loader_t;
 
 
 lre_decl // TODO
-int lre_handle_string(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
+int lre_handle_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
 	lre_mod_t modifier;
 	
 	if (lre_unlikely((lre_slice_len(slice) - 1) % 2)) {
@@ -743,7 +747,7 @@ int lre_handle_string(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 		default: return lre_fail(LRE_ERROR_MOD, error);
 	}
 	
-	if (lre_unlikely(hns->handler_str(hns->app_private, slice, modifier) != LRE_OK)) {
+	if (lre_unlikely(loader->handler_str(loader, slice, modifier) != LRE_OK)) {
 		return lre_fail(LRE_ERROR_HANDLER, error);
 	}
 	
@@ -752,7 +756,7 @@ int lre_handle_string(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 
 
 lre_decl // TODO
-int lre_handle_number(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
+int lre_handle_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
 	uint8_t mask;
 	uint64_t integral;
 	lre_number_info_t info = {tag, 0, 0};
@@ -813,7 +817,7 @@ int lre_handle_number(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 
 			negative = lrex_negate_positive(integral);
 
-			if (lre_unlikely(hns->handler_int(hns->app_private, negative) != LRE_OK)) {
+			if (lre_unlikely(loader->handler_int(loader, negative) != LRE_OK)) {
 				return lre_fail(LRE_ERROR_HANDLER, error);
 			}
 		}
@@ -822,7 +826,7 @@ int lre_handle_number(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 				return lre_fail(LRE_ERROR_RANGE, error);
 			}
 
-			if (lre_unlikely(hns->handler_int(hns->app_private, integral) != LRE_OK)) {
+			if (lre_unlikely(loader->handler_int(loader, integral) != LRE_OK)) {
 				return lre_fail(LRE_ERROR_HANDLER, error);
 			}
 		}
@@ -833,7 +837,7 @@ int lre_handle_number(const lre_handlers_t *hns, lre_tag_t tag, lre_slice_t *sli
 
 
 lre_decl
-int lre_tokenize(const lre_handlers_t *hns, const uint8_t *src, size_t size, lre_error_t *error) {
+int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) {
 	const uint8_t *sep = src;
 	const uint8_t *end = src + size;
 	
@@ -848,7 +852,7 @@ int lre_tokenize(const lre_handlers_t *hns, const uint8_t *src, size_t size, lre
 		}
 		
 		if (lrex_tag_is_string(tag)) {
-			if (lre_unlikely(lre_handle_string(hns, tag, &slice, error) != LRE_OK)) {
+			if (lre_unlikely(lre_handle_string(loader, tag, &slice, error) != LRE_OK)) {
 				return LRE_FAIL;
 			}
 			
@@ -856,7 +860,7 @@ int lre_tokenize(const lre_handlers_t *hns, const uint8_t *src, size_t size, lre
 		}
 		
 		if (lrex_tag_is_number(tag)) {
-			if (lre_unlikely(lre_handle_number(hns, tag, &slice, error) != LRE_OK)) {
+			if (lre_unlikely(lre_handle_number(loader, tag, &slice, error) != LRE_OK)) {
 				return LRE_FAIL;
 			}
 			
