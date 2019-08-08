@@ -212,7 +212,7 @@ typedef enum {
 
 /* String modifiers */
 typedef enum {
-	LRE_MOD_DEFAULT     = 'D',
+	LRE_MOD_DEFAULT     = 0, /* Will never be packed */
 	LRE_MOD_STRING_RAW  = 'H',
 	LRE_MOD_STRING_UTF8 = 'L'
 } lre_mod_t;
