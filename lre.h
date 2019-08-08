@@ -679,9 +679,11 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 		if (lre_unlikely(lre_isinf(value))) {
 			if (value < 0) {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_NEGATIVE_INF);
+				lrex_write_char(&dst, LRE_SEP_NEGATIVE);
 			}
 			else {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_POSITIVE_INF);
+				lrex_write_char(&dst, LRE_SEP_POSITIVE);
 			}
 			
 			lre_buffer_set_size_distance(buf, dst);
@@ -948,7 +950,7 @@ int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_erro
 
 		src = sep + 1;
 		
-		if (lre_unlikely(lre_slice_len(&slice) < 1)) {
+		if (lre_unlikely(lre_slice_len(&slice) < 0)) {
 			return lre_fail(LRE_ERROR_LENGTH, error);
 		}
 		
@@ -970,6 +972,8 @@ int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_erro
 		
 		return lre_fail(LRE_ERROR_TAG, error);
 	}
+
+	return LRE_OK;
 }
 
 
