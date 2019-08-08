@@ -748,6 +748,61 @@ typedef struct lre_loader_t {
 } lre_loader_t;
 
 
+lre_decl
+int lre_loader_default_handler_int(lre_loader_t *loader, int64_t value) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_float(lre_loader_t *loader, double value) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_inf(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+	double value = lrex_tag_is_negative(info->tag) ? -INFINITY : INFINITY;
+
+	if (lre_likely(loader->handler_float)) {
+		return loader->handler_float(loader, value);
+	}
+
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_bigfloat(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+	return LRE_OK;
+}
+
+
+lre_decl
+void lre_loader_init(lre_loader_t *loader) {
+	loader->app_private      = 0;
+
+	loader->handler_int      = &lre_loader_default_handler_int;
+	loader->handler_float    = &lre_loader_default_handler_float;
+	loader->handler_str      = &lre_loader_default_handler_str;
+	loader->handler_inf      = &lre_loader_default_handler_inf;
+	loader->handler_bigint   = &lre_loader_default_handler_bigint;
+	loader->handler_bigfloat = &lre_loader_default_handler_bigfloat;
+}
+
+
 lre_decl // TODO
 int lre_handle_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
 	lre_mod_t modifier;
