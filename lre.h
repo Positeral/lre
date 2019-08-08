@@ -679,9 +679,11 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 		if (lre_unlikely(lre_isinf(value))) {
 			if (value < 0) {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_NEGATIVE_INF);
+				lrex_write_char(&dst, LRE_SEP_NEGATIVE);
 			}
 			else {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_POSITIVE_INF);
+				lrex_write_char(&dst, LRE_SEP_POSITIVE);
 			}
 			
 			lre_buffer_set_size_distance(buf, dst);
@@ -746,6 +748,61 @@ typedef struct lre_loader_t {
 	int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
 	int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
 } lre_loader_t;
+
+
+lre_decl
+int lre_loader_default_handler_int(lre_loader_t *loader, int64_t value) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_float(lre_loader_t *loader, double value) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_inf(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+	double value = lrex_tag_is_negative(info->tag) ? -INFINITY : INFINITY;
+
+	if (lre_likely(loader->handler_float)) {
+		return loader->handler_float(loader, value);
+	}
+
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+	return LRE_OK;
+}
+
+
+lre_decl
+int lre_loader_default_handler_bigfloat(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+	return LRE_OK;
+}
+
+
+lre_decl
+void lre_loader_init(lre_loader_t *loader) {
+	loader->app_private      = 0;
+
+	loader->handler_int      = &lre_loader_default_handler_int;
+	loader->handler_float    = &lre_loader_default_handler_float;
+	loader->handler_str      = &lre_loader_default_handler_str;
+	loader->handler_inf      = &lre_loader_default_handler_inf;
+	loader->handler_bigint   = &lre_loader_default_handler_bigint;
+	loader->handler_bigfloat = &lre_loader_default_handler_bigfloat;
+}
 
 
 lre_decl // TODO
@@ -893,7 +950,7 @@ int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_erro
 
 		src = sep + 1;
 		
-		if (lre_unlikely(lre_slice_len(&slice) < 1)) {
+		if (lre_unlikely(lre_slice_len(&slice) < 0)) {
 			return lre_fail(LRE_ERROR_LENGTH, error);
 		}
 		
@@ -915,6 +972,8 @@ int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_erro
 		
 		return lre_fail(LRE_ERROR_TAG, error);
 	}
+
+	return LRE_OK;
 }
 
 
