@@ -137,7 +137,7 @@ static const uint8_t lrex_hexrev[256] = {
 
 
 /* For decimal inversion */
-const int64_t lrex_max10[16] = {
+static const int64_t lrex_max10[16] = {
 	INT64_C(0),
 	INT64_C(9),
 	INT64_C(99),
@@ -157,7 +157,7 @@ const int64_t lrex_max10[16] = {
 };
 
 /* Precalculate powers of 10 */
-const double lrex_pow10[16] = {
+static const double lrex_pow10[16] = {
 	1.0,
 	10.0,
 	100.0,
