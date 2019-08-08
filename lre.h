@@ -137,7 +137,7 @@ static const uint8_t lrex_hexrev[256] = {
 
 
 /* For decimal inversion */
-const int64_t lrex_max10[16] = {
+static const int64_t lrex_max10[16] = {
 	INT64_C(0),
 	INT64_C(9),
 	INT64_C(99),
@@ -157,7 +157,7 @@ const int64_t lrex_max10[16] = {
 };
 
 /* Precalculate powers of 10 */
-const double lrex_pow10[16] = {
+static const double lrex_pow10[16] = {
 	1.0,
 	10.0,
 	100.0,
@@ -212,7 +212,7 @@ typedef enum {
 
 /* String modifiers */
 typedef enum {
-	LRE_MOD_DEFAULT     = 'D',
+	LRE_MOD_DEFAULT     = 0, /* Will never be packed */
 	LRE_MOD_STRING_RAW  = 'H',
 	LRE_MOD_STRING_UTF8 = 'L'
 } lre_mod_t;
@@ -532,27 +532,27 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 		return 0;
 	}
 	
-	if (reserve) {
-		buf->data = lre_std_malloc(reserve);
+	reserve++;
+	buf->data = lre_std_malloc(reserve);
 		
-		if (!buf->data) {
-			lre_fail(LRE_ERROR_ALLOCATION, error);
-			lre_std_free(buf);
-			return 0;
-		}
-		
-		buf->reserved = reserve;
-		buf->capacity = reserve;
+	if (!buf->data) {
+		lre_fail(LRE_ERROR_ALLOCATION, error);
+		lre_std_free(buf);
+		return 0;
 	}
 	
+	buf->data[0] = '\0';
+	buf->reserved = reserve;
+	buf->capacity = reserve;
+
 	return buf;
 }
 
 
 lre_decl
-int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {	
+int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		size_t capacity = (buf->size + required) * 1.25;
+		size_t capacity = (buf->size + required + 1) * 1.25;
 		uint8_t *data = lre_std_realloc(buf->data, capacity);
 		
 		if (lre_unlikely(!data)) {
@@ -577,6 +577,7 @@ lre_decl
 void lre_buffer_set_size_distance(lre_buffer_t *buf, uint8_t *end) {
 	if (lre_likely(end >= buf->data)) {
 		buf->size = end - buf->data;
+		buf->data[buf->size] = '\0';
 	}
 }
 
@@ -584,11 +585,12 @@ void lre_buffer_set_size_distance(lre_buffer_t *buf, uint8_t *end) {
 lre_decl
 int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
 	buf->size = 0;
-	
+	buf->data[0] = '\0';
+
 	if (lre_unlikely(buf->capacity != buf->reserved)) {
 		uint8_t *data = lre_std_realloc(buf->data, buf->reserved);
 		
-		if (lre_unlikely(!data && buf->reserved)) {
+		if (lre_unlikely(!data)) {
 			return lre_fail(LRE_ERROR_ALLOCATION, error);
 		}
 		
@@ -872,13 +874,6 @@ int lre_handle_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 	}
 
 	info.ndigits_fraction = lre_slice_len(slice) - (info.nbytes_integral * 2);
-
-	char c[30] = {0};
-	memcpy(c, slice->src, lre_slice_len(slice));
-	printf("slice: %s\n", c);
-	printf("mask: %x\n", mask);
-	printf("info.nbytes_integral:  %li\n", info.nbytes_integral);
-	printf("info.ndigits_fraction: %li\n", info.ndigits_fraction);
 	
 	if (lre_unlikely(info.ndigits_fraction < 0)) {
 		return lre_fail(LRE_ERROR_LENGTH, error);
