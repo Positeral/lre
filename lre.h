@@ -532,27 +532,27 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 		return 0;
 	}
 	
-	if (reserve) {
-		buf->data = lre_std_malloc(reserve);
+	reserve++;
+	buf->data = lre_std_malloc(reserve);
 		
-		if (!buf->data) {
-			lre_fail(LRE_ERROR_ALLOCATION, error);
-			lre_std_free(buf);
-			return 0;
-		}
-		
-		buf->reserved = reserve;
-		buf->capacity = reserve;
+	if (!buf->data) {
+		lre_fail(LRE_ERROR_ALLOCATION, error);
+		lre_std_free(buf);
+		return 0;
 	}
 	
+	buf->data[0] = '\0';
+	buf->reserved = reserve;
+	buf->capacity = reserve;
+
 	return buf;
 }
 
 
 lre_decl
-int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {	
+int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		size_t capacity = (buf->size + required) * 1.25;
+		size_t capacity = (buf->size + required + 1) * 1.25;
 		uint8_t *data = lre_std_realloc(buf->data, capacity);
 		
 		if (lre_unlikely(!data)) {
@@ -577,6 +577,7 @@ lre_decl
 void lre_buffer_set_size_distance(lre_buffer_t *buf, uint8_t *end) {
 	if (lre_likely(end >= buf->data)) {
 		buf->size = end - buf->data;
+		buf->data[buf->size] = '\0';
 	}
 }
 
@@ -584,11 +585,12 @@ void lre_buffer_set_size_distance(lre_buffer_t *buf, uint8_t *end) {
 lre_decl
 int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
 	buf->size = 0;
-	
+	buf->data[0] = '\0';
+
 	if (lre_unlikely(buf->capacity != buf->reserved)) {
 		uint8_t *data = lre_std_realloc(buf->data, buf->reserved);
 		
-		if (lre_unlikely(!data && buf->reserved)) {
+		if (lre_unlikely(!data)) {
 			return lre_fail(LRE_ERROR_ALLOCATION, error);
 		}
 		
