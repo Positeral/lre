@@ -874,13 +874,6 @@ int lre_handle_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 	}
 
 	info.ndigits_fraction = lre_slice_len(slice) - (info.nbytes_integral * 2);
-
-	char c[30] = {0};
-	memcpy(c, slice->src, lre_slice_len(slice));
-	printf("slice: %s\n", c);
-	printf("mask: %x\n", mask);
-	printf("info.nbytes_integral:  %li\n", info.nbytes_integral);
-	printf("info.ndigits_fraction: %li\n", info.ndigits_fraction);
 	
 	if (lre_unlikely(info.ndigits_fraction < 0)) {
 		return lre_fail(LRE_ERROR_LENGTH, error);
