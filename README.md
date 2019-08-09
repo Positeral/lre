@@ -7,7 +7,7 @@ Features:
 * Screamingly fast
 * ASCII-safe
 * Header-only library
-* Cross platform with no dependencies
+* Cross platform C code with no dependencies
 * Simple sequential SAX-like API
 * Uniform format for floating-point and integer numbers
 
