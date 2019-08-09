@@ -2,6 +2,7 @@
 /[Dd]ebug/
 /[Rr]elease/
 /[Bb]uild/
+/[Tt]mp/
 lre.project
 lre.txt
 lre.mk
