@@ -837,7 +837,6 @@ int lre_handle_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 	switch (modifier) {
 		case LRE_MOD_STRING_UTF8: break;
 		case LRE_MOD_STRING_RAW:  break;
-		case LRE_MOD_DEFAULT:     break;
 		default: return lre_fail(LRE_ERROR_MOD, error);
 	}
 	
