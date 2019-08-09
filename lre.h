@@ -574,7 +574,7 @@ uint8_t *lre_buffer_end(lre_buffer_t *buf) {
 
 
 lre_decl
-void lre_buffer_set_size_distance(lre_buffer_t *buf, uint8_t *end) {
+void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
 	if (lre_likely(end >= buf->data)) {
 		buf->size = end - buf->data;
 		buf->data[buf->size] = '\0';
