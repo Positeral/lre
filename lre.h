@@ -239,7 +239,7 @@ const char *lre_strerror(lre_error_t error) {
 		case LRE_ERROR_ALLOCATION: return "Memory cannot be allocated";
 		case LRE_ERROR_NULLPTR:    return "Null pointer passed";		
 		case LRE_ERROR_RANGE:      return "Value out of allowed range";
-		case LRE_ERROR_NAN:        return "Value is not a number";
+		case LRE_ERROR_NAN:        return "Value is NaN";
 		case LRE_ERROR_LENGTH:     return "Invalid length of data";
 		case LRE_ERROR_TAG:        return "Unknown tag";
 		case LRE_ERROR_SIGN:       return "Unknown sign";
