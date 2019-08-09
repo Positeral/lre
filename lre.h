@@ -309,7 +309,7 @@ lre_tag_t lrex_tag_by_nbytes_negative(int nbytes) {
  */
 lre_decl
 int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
-	return numeric_tag - (LRE_TAG_NUMBER_POSITIVE_1 - 1);
+	return (int) numeric_tag - ((int) LRE_TAG_NUMBER_POSITIVE_1 - 1);
 }
 
 
@@ -319,7 +319,7 @@ int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
  */
 lre_decl
 int lrex_nbytes_by_tag_negative(lre_tag_t numeric_tag) {
-	return (LRE_TAG_NUMBER_NEGATIVE_1 + 1) - numeric_tag;
+	return ((int) LRE_TAG_NUMBER_NEGATIVE_1 + 1) - (int) numeric_tag;
 }
 
 
@@ -336,6 +336,22 @@ int lrex_tag_is_number(lre_tag_t tag) {
 	return
 	(tag >= LRE_TAG_NUMBER_NEGATIVE_INF) &&
 	(tag <= LRE_TAG_NUMBER_POSITIVE_INF);
+}
+
+
+lre_decl
+int lrex_tag_is_number_big(lre_tag_t tag) {
+	return
+	(tag == LRE_TAG_NUMBER_POSITIVE_BIG) ||
+	(tag == LRE_TAG_NUMBER_NEGATIVE_BIG);
+}
+
+
+lre_decl
+int lrex_tag_is_number_inf(lre_tag_t tag) {
+	return
+	(tag == LRE_TAG_NUMBER_POSITIVE_INF) ||
+	(tag == LRE_TAG_NUMBER_NEGATIVE_INF);
 }
 
 
@@ -628,7 +644,7 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mo
 		}
 		
 		lrex_write_str (&dst, src, len, 0);
-		lrex_write_char(&dst, mod);
+		lrex_write_char(&dst, (int) mod);
 		lrex_write_char(&dst, LRE_SEP_POSITIVE);
 		lre_buffer_set_size_distance(buf, dst);
 		return LRE_OK;
@@ -648,14 +664,14 @@ int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
 			uint64_t uvalue = lrex_negate_negative(value);
 			uint8_t  nbytes = lrex_count_nbytes(uvalue);
 			
-			lrex_write_char   (&dst, lrex_tag_by_nbytes_negative(nbytes));
+			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(nbytes));
 			lrex_write_uint64n(&dst, ~uvalue, nbytes);
 			lrex_write_char   (&dst, LRE_SEP_NEGATIVE);
 		}
 		else {
 			uint8_t nbytes = lrex_count_nbytes(value);
 			
-			lrex_write_char   (&dst, lrex_tag_by_nbytes_positive(nbytes));
+			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(nbytes));
 			lrex_write_uint64n(&dst, value, nbytes);
 			lrex_write_char   (&dst, LRE_SEP_POSITIVE);
 		}
@@ -704,7 +720,7 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 			/* Decimal inversion */
 			fraction = lrex_max10[15] - fraction;
 			
-			lrex_write_char   (&dst, lrex_tag_by_nbytes_negative(nbytes));
+			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(nbytes));
 			lrex_write_uint64n(&dst, ~integral, nbytes);
 			lrex_write_decimal(&dst, fraction, 15);
 			lrex_write_char   (&dst, LRE_SEP_NEGATIVE);
@@ -714,7 +730,7 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 			uint64_t fraction = (value - integral) * 1e15 + 0.5;
 			uint8_t  nbytes   = lrex_count_nbytes(integral);
 			
-			lrex_write_char   (&dst, lrex_tag_by_nbytes_positive(nbytes));
+			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(nbytes));
 			lrex_write_uint64n(&dst, integral, nbytes);
 			lrex_write_decimal(&dst, fraction, 15);
 			lrex_write_char   (&dst, LRE_SEP_POSITIVE);
@@ -821,7 +837,6 @@ int lre_handle_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 	switch (modifier) {
 		case LRE_MOD_STRING_UTF8: break;
 		case LRE_MOD_STRING_RAW:  break;
-		case LRE_MOD_DEFAULT:     break;
 		default: return lre_fail(LRE_ERROR_MOD, error);
 	}
 	
@@ -834,10 +849,7 @@ int lre_handle_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 
 
 lre_decl
-int lre_handle_number_bignum(lre_loader_t *loader,
-                            lre_slice_t *slice,
-						    lre_number_info_t *info,
-						    lre_error_t *error) {
+int lre_handle_number_bignum(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info, lre_error_t *error) {
 	return lre_fail(LRE_ERROR_RANGE, error);
 }
 
@@ -850,18 +862,16 @@ int lre_handle_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 	lre_number_info_t info = {tag, 0, 0};
 	lre_slice_t srcslice = *slice;
 	
-	switch (tag) {
-		case LRE_TAG_NUMBER_POSITIVE_BIG:
-		case LRE_TAG_NUMBER_NEGATIVE_BIG:
-			return lre_handle_number_bignum(loader, &srcslice, &info, error);
+	if (lre_unlikely(lrex_tag_is_number_big(tag))) {
+		return lre_handle_number_bignum(loader, &srcslice, &info, error);
+	}
 
-		case LRE_TAG_NUMBER_POSITIVE_INF:
-		case LRE_TAG_NUMBER_NEGATIVE_INF:
-			if (lre_unlikely(loader->handler_inf(loader, &srcslice, &info) != LRE_OK)) {
-				return lre_fail(LRE_ERROR_HANDLER, error);
-			}
+	if (lre_unlikely(lrex_tag_is_number_inf(tag))) {
+		if (lre_unlikely(loader->handler_inf(loader, &srcslice, &info) != LRE_OK)) {
+			return lre_fail(LRE_ERROR_HANDLER, error);
+		}
 
-			return LRE_OK;
+		return LRE_OK;
 	}
 	
 	if (lrex_tag_is_negative(tag)) {
