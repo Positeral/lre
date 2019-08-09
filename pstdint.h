@@ -293,16 +293,16 @@
 
 # if defined (__WATCOMC__) && __WATCOMC__ >= 1250
 #  if !defined (INT64_C)
-#   define INT64_C(x)   (x + (INT64_MAX - INT64_MAX))
+#   define INT64_C(x)   ((x) + (INT64_MAX - INT64_MAX))
 #  endif
 #  if !defined (UINT64_C)
-#   define UINT64_C(x)  (x + (UINT64_MAX - UINT64_MAX))
+#   define UINT64_C(x)  ((x) + (UINT64_MAX - UINT64_MAX))
 #  endif
 #  if !defined (INT32_C)
-#   define INT32_C(x)   (x + (INT32_MAX - INT32_MAX))
+#   define INT32_C(x)   ((x) + (INT32_MAX - INT32_MAX))
 #  endif
 #  if !defined (UINT32_C)
-#   define UINT32_C(x)  (x + (UINT32_MAX - UINT32_MAX))
+#   define UINT32_C(x)  ((x) + (UINT32_MAX - UINT32_MAX))
 #  endif
 #  if !defined (INT16_C)
 #   define INT16_C(x)   (x)
