@@ -552,7 +552,7 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		size_t capacity = (buf->size + required + 1) * 1.25;
+		size_t capacity = (buf->size + required + 1) * 10 / 8; /* +25% */
 		uint8_t *data = lre_std_realloc(buf->data, capacity);
 		
 		if (lre_unlikely(!data)) {
@@ -574,7 +574,7 @@ uint8_t *lre_buffer_end(lre_buffer_t *buf) {
 
 
 lre_decl
-void lre_buffer_set_size_distance(lre_buffer_t *buf, uint8_t *end) {
+void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
 	if (lre_likely(end >= buf->data)) {
 		buf->size = end - buf->data;
 		buf->data[buf->size] = '\0';
