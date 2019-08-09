@@ -236,7 +236,7 @@ lre_decl
 const char *lre_strerror(lre_error_t error) {
 	switch (error) {
 		case LRE_ERROR_NOTHING:    return "Successful return";
-		case LRE_ERROR_ALLOCATION: return "Memory cannot be allocated";
+		case LRE_ERROR_ALLOCATION: return "Memory cannot be (re)allocated";
 		case LRE_ERROR_NULLPTR:    return "Null pointer passed";		
 		case LRE_ERROR_RANGE:      return "Value out of allowed range";
 		case LRE_ERROR_NAN:        return "Value is NaN";
