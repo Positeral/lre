@@ -834,10 +834,7 @@ int lre_handle_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 
 
 lre_decl
-int lre_handle_number_bignum(lre_loader_t *loader,
-                            lre_slice_t *slice,
-						    lre_number_info_t *info,
-						    lre_error_t *error) {
+int lre_handle_number_bignum(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info, lre_error_t *error) {
 	return lre_fail(LRE_ERROR_RANGE, error);
 }
 
