@@ -339,6 +339,22 @@ int lrex_tag_is_number(lre_tag_t tag) {
 }
 
 
+lre_decl
+int lrex_tag_is_number_big(lre_tag_t tag) {
+	return
+	(tag == LRE_TAG_NUMBER_POSITIVE_BIG) ||
+	(tag == LRE_TAG_NUMBER_NEGATIVE_BIG);
+}
+
+
+lre_decl
+int lrex_tag_is_number_inf(lre_tag_t tag) {
+	return
+	(tag == LRE_TAG_NUMBER_POSITIVE_INF) ||
+	(tag == LRE_TAG_NUMBER_NEGATIVE_INF);
+}
+
+
 /* */
 lre_decl
 int lrex_tag_is_negative(lre_tag_t tag) {
@@ -847,18 +863,16 @@ int lre_handle_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, l
 	lre_number_info_t info = {tag, 0, 0};
 	lre_slice_t srcslice = *slice;
 	
-	switch (tag) {
-		case LRE_TAG_NUMBER_POSITIVE_BIG:
-		case LRE_TAG_NUMBER_NEGATIVE_BIG:
-			return lre_handle_number_bignum(loader, &srcslice, &info, error);
+	if (lre_unlikely(lrex_tag_is_number_big(tag))) {
+		return lre_handle_number_bignum(loader, &srcslice, &info, error);
+	}
 
-		case LRE_TAG_NUMBER_POSITIVE_INF:
-		case LRE_TAG_NUMBER_NEGATIVE_INF:
-			if (lre_unlikely(loader->handler_inf(loader, &srcslice, &info) != LRE_OK)) {
-				return lre_fail(LRE_ERROR_HANDLER, error);
-			}
+	if (lre_unlikely(lrex_tag_is_number_inf(tag))) {
+		if (lre_unlikely(loader->handler_inf(loader, &srcslice, &info) != LRE_OK)) {
+			return lre_fail(LRE_ERROR_HANDLER, error);
+		}
 
-			return LRE_OK;
+		return LRE_OK;
 	}
 	
 	if (lrex_tag_is_negative(tag)) {
