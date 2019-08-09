@@ -552,7 +552,7 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		size_t capacity = (buf->size + required + 1) * 1.25;
+		size_t capacity = (buf->size + required + 1) * 10 / 8; /* +25% */
 		uint8_t *data = lre_std_realloc(buf->data, capacity);
 		
 		if (lre_unlikely(!data)) {
