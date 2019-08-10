@@ -90,7 +90,7 @@ int main() {
 
     lre_error_t error = 0;
     lre_loader_t loader;
-    lre_loader_init(&loader);
+    lre_loader_init(&loader, 0);
 
     /* Pointer to any inner application object */
     loader.app_private = 0;

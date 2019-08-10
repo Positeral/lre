@@ -811,8 +811,8 @@ int lre_loader_default_handler_bigfloat(lre_loader_t *loader, lre_slice_t *slice
 
 
 lre_decl
-void lre_loader_init(lre_loader_t *loader) {
-	loader->app_private      = 0;
+void lre_loader_init(lre_loader_t *loader, void *app_private) {
+	loader->app_private      = app_private;
 
 	loader->handler_int      = &lre_loader_default_handler_int;
 	loader->handler_float    = &lre_loader_default_handler_float;
