@@ -1,5 +1,6 @@
 from cython cimport final
 from libc.stdint cimport uint8_t, int64_t
+from cpython.bytes cimport PyBytes_FromStringAndSize
 
 # From lre.h
 DEF LRE_OK   = 0
@@ -67,6 +68,8 @@ cdef extern from '../../lre.h':
 		const uint8_t *src
 		const uint8_t *end
 
+	ptrdiff_t lre_slice_len(const lre_slice_t *slice)
+
 	ctypedef struct lre_number_info_t:
 		lre_tag_t tag
 		ptrdiff_t nbytes_integral  # Number of encoded bytes
@@ -105,8 +108,17 @@ cdef int loader_handler_float(lre_loader_t *loader, double value) except? LRE_FA
 
 cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL:
 	cdef LRE lre = <LRE> loader.app_private
-	return LRE_OK
+	cdef ptrdiff_t nbytes = lre_slice_len(slice) / 2
+	cdef bytes s = PyBytes_FromStringAndSize(<char *> 0, nbytes)
 
+	lrex_read_str(&slice.src, <uint8_t *> s, nbytes, 0)
+
+	if mod == LRE_MOD_STRING_UTF8:
+		lre.hndl_key.append(s.decode('utf8'))
+	else:
+		lre.hndl_key.append(s)
+
+	return LRE_OK
 
 
 @final
