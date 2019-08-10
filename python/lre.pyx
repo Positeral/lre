@@ -138,16 +138,16 @@ cdef class LRE:
 			for i in key:
 				if isinstance(i, unicode):
 					i = i.encode('utf8')
-					lre_pack_str(self.lrbuf, <const uint8_t *> i, len(i), LRE_MOD_STRING_UTF8, &error)
+					lre_pack_str(self.lrbuf, i, len(i), LRE_MOD_STRING_UTF8, &error)
 
 				elif isinstance(i, int):
-					lre_pack_int(self.lrbuf, <int64_t> i, &error)
+					lre_pack_int(self.lrbuf, i, &error)
 
 				elif isinstance(i, bytes):
-					lre_pack_str(self.lrbuf, <const uint8_t *> i, len(i), LRE_MOD_STRING_RAW, &error)
+					lre_pack_str(self.lrbuf, i, len(i), LRE_MOD_STRING_RAW, &error)
 
 				elif isinstance(i, float):
-					lre_pack_float(self.lrbuf, <double> i, &error)
+					lre_pack_float(self.lrbuf, i, &error)
 
 				else:
 					raise ValueError('type <%s> is unsupported' % type(i).__name__)
