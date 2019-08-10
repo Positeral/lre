@@ -10,7 +10,7 @@ cdef extern from *:
 DEF LRE_OK   = 0
 DEF LRE_FAIL = 1
 
-cdef extern from '../../lre.h':
+cdef extern from 'lre.h':
 	ctypedef enum lre_error_t:
 		LRE_ERROR_NOTHING
 		LRE_ERROR_ALLOCATION

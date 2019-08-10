@@ -1,5 +1,10 @@
+import os
+from distutils.extension import Extension
 from distutils.core import setup
 from Cython.Build import cythonize
+
+scriptdir = os.path.dirname(os.path.abspath(__file__))
+includedir = os.path.normpath(os.path.join(scriptdir, '..'))
 
 classifiers = [
     'Development Status :: 3 - Alpha',
@@ -15,5 +20,6 @@ setup(name='lre',
       license='BSD License',
       author='Arthur Goncharuk',
       classifiers=classifiers,
-      ext_modules=cythonize('lre.pyx', build_dir='build')
+      ext_modules=cythonize(Extension('lre', ['lre.pyx'],
+                                      include_dirs=[includedir]))
 )
