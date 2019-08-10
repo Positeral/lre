@@ -2,6 +2,10 @@ from cython cimport final
 from libc.stdint cimport uint8_t, int64_t
 from cpython.bytes cimport PyBytes_FromStringAndSize
 
+
+cdef extern from *:
+	const char *PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size)
+
 # From lre.h
 DEF LRE_OK   = 0
 DEF LRE_FAIL = 1
@@ -121,6 +125,38 @@ cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t 
 	return LRE_OK
 
 
+cdef packbuffer(lre_buffer_t *lrbuf, object key):
+	cdef lre_error_t error = LRE_ERROR_NOTHING
+	cdef const uint8_t *s
+	cdef Py_ssize_t size
+
+	if not isinstance(key, list):
+		key = [key]
+
+	for i in key:
+		if isinstance(i, unicode):
+			s = <const uint8_t *> PyUnicode_AsUTF8AndSize(i, &size)
+			lre_pack_str(lrbuf, s, size, LRE_MOD_STRING_UTF8, &error)
+
+		elif isinstance(i, int):
+			lre_pack_int(lrbuf, i, &error)
+
+		elif isinstance(i, bytes):
+			lre_pack_str(lrbuf, i, len(i), LRE_MOD_STRING_RAW, &error)
+
+		elif isinstance(i, float):
+			lre_pack_float(lrbuf, i, &error)
+
+		elif isinstance(i, list):
+			return packbuffer(lrbuf, i)
+
+		else:
+			raise ValueError('type <%s> is unsupported' % type(i).__name__)
+
+		if error:
+			raise ValueError(lre_strerror(error).decode('utf8'))
+
+
 @final
 cdef class LRE:
 	cdef lre_error_t   lrerror
@@ -144,29 +180,7 @@ cdef class LRE:
 		cdef lre_error_t error = LRE_ERROR_NOTHING
 
 		try:
-			if not isinstance(key, list):
-				key = [key]
-
-			for i in key:
-				if isinstance(i, unicode):
-					i = i.encode('utf8')
-					lre_pack_str(self.lrbuf, i, len(i), LRE_MOD_STRING_UTF8, &error)
-
-				elif isinstance(i, int):
-					lre_pack_int(self.lrbuf, i, &error)
-
-				elif isinstance(i, bytes):
-					lre_pack_str(self.lrbuf, i, len(i), LRE_MOD_STRING_RAW, &error)
-
-				elif isinstance(i, float):
-					lre_pack_float(self.lrbuf, i, &error)
-
-				else:
-					raise ValueError('type <%s> is unsupported' % type(i).__name__)
-
-				if error:
-					raise ValueError(lre_strerror(error).decode('utf8'))
-
+			packbuffer(self.lrbuf, key)
 			return self.lrbuf.data[:self.lrbuf.size]
 		finally:
 			if lre_buffer_reset(self.lrbuf, &error) != LRE_OK:
@@ -191,7 +205,7 @@ cdef class LRE:
 
 		return self.hndl_key
 
-lre = LRE(1)
+lre = LRE(4096)
 pack = lre.pack
 load = lre.load
 dumps = pack
