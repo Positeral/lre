@@ -17,6 +17,8 @@ classifiers = [
     'Programming Language :: Python'
 ]
 
+ext = Extension('lre', ['lre.pyx'], include_dirs=[includedir])
+
 setup(name='lre',
       packages=['lre'],
       version='0.0.1',
@@ -26,6 +28,5 @@ setup(name='lre',
       long_description_content_type="text/markdown",
       url="https://github.com/Positeral/lre/python",
       classifiers=classifiers,
-      ext_modules=cythonize(Extension('lre', ['lre.pyx'],
-                                      include_dirs=[includedir]))
+      ext_modules=cythonize(ext, build_dir='build')
 )
