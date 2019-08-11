@@ -387,7 +387,7 @@ int lrex_count_nbytes(uint64_t value) {
 
 
 lre_decl
-void lrex_write_char(uint8_t **dst, uint8_t value){
+void lrex_write_char(uint8_t **dst, uint8_t value) {
 	*(*dst)++ = value;
 }
 
