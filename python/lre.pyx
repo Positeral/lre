@@ -5,6 +5,7 @@ from cpython.bytes cimport PyBytes_FromStringAndSize
 
 cdef extern from *:
 	const char *PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size) except? NULL
+	int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except? -1
 	long long PyLong_AsLongLongAndOverflow(object obj, int *overflow) except? -1
 
 
@@ -171,8 +172,9 @@ cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 
 cdef packbuffer(lre_buffer_t *lrbuf, object key):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
-	cdef const uint8_t *s
-	cdef Py_ssize_t size
+
+	cdef const uint8_t *str_value
+	cdef Py_ssize_t     str_size
 
 	cdef int     int_overflow
 	cdef int64_t int_value
@@ -182,8 +184,8 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 
 	for i in key:
 		if isinstance(i, unicode):
-			s = <const uint8_t *> PyUnicode_AsUTF8AndSize(i, &size)
-			lre_pack_str(lrbuf, s, size, LRE_MOD_STRING_UTF8, &error)
+			str_value = <const uint8_t *> PyUnicode_AsUTF8AndSize(i, &str_size)
+			lre_pack_str(lrbuf, str_value, str_size, LRE_MOD_STRING_UTF8, &error)
 
 		elif isinstance(i, int):
 			int_value = PyLong_AsLongLongAndOverflow(i, &int_overflow)
@@ -194,7 +196,8 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 				return packbufferbigint(lrbuf, i)
 
 		elif isinstance(i, bytes):
-			lre_pack_str(lrbuf, i, len(i), LRE_MOD_STRING_RAW, &error)
+			PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
+			lre_pack_str(lrbuf, str_value, str_size, LRE_MOD_STRING_RAW, &error)
 
 		elif isinstance(i, float):
 			lre_pack_float(lrbuf, i, &error)
