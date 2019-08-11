@@ -1,10 +1,12 @@
 from cython cimport final
-from libc.stdint cimport uint8_t, int64_t
+from libc.stdint cimport uint8_t, uint16_t, int64_t
 from cpython.bytes cimport PyBytes_FromStringAndSize
 
 
 cdef extern from *:
-	const char *PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size)
+	const char *PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size) except? NULL
+	long long PyLong_AsLongLongAndOverflow(object obj, int *overflow) except? -1
+
 
 # From lre.h
 DEF LRE_OK   = 0
@@ -22,6 +24,10 @@ cdef extern from 'lre.h':
 		LRE_ERROR_SIGN
 		LRE_ERROR_MOD
 		LRE_ERROR_HANDLER
+
+	cdef enum lre_sep_t:
+		LRE_SEP_NEGATIVE
+		LRE_SEP_POSITIVE
 
 	ctypedef enum lre_tag_t:
 		LRE_TAG_NUMBER_NEGATIVE_INF
@@ -51,6 +57,9 @@ cdef extern from 'lre.h':
 		LRE_MOD_STRING_RAW
 		LRE_MOD_STRING_UTF8
 
+	void lrex_write_char(uint8_t **dst, uint8_t value)
+	void lrex_write_uint16(uint8_t **dst, uint16_t value)
+	void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask)
 	void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mask)
 
 	ctypedef struct lre_buffer_t:
@@ -61,6 +70,8 @@ cdef extern from 'lre.h':
 
 	lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error)
 	int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error)
+	uint8_t *lre_buffer_end(lre_buffer_t *buf)
+	void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end)
 	int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error)
 	void lre_buffer_close(lre_buffer_t *buf)
 
@@ -125,10 +136,46 @@ cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t 
 	return LRE_OK
 
 
+cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
+	cdef lre_error_t error = LRE_ERROR_NOTHING
+	cdef uint8_t *dst
+	cdef uint16_t nbytes = (intobj.bit_length() + 7) // 8
+	cdef bytes s
+
+	if nbytes > 0xffff:
+		raise OverflowError('big int out of range')
+
+	# tag(1) + nbytes(4) + value(nbytes*2) + separator(1)
+	if lre_buffer_require(lrbuf, (1+4+(nbytes*2)+1), &error) != LRE_OK:
+		raise MemoryError(lre_strerror(error).decode('utf8'))
+
+	dst = lre_buffer_end(lrbuf)
+
+	if intobj < 0:
+		s = (-intobj).to_bytes(nbytes, 'big')
+
+		lrex_write_char  (&dst, LRE_TAG_NUMBER_NEGATIVE_BIG)
+		lrex_write_uint16(&dst, ~nbytes)
+		lrex_write_str   (&dst, s, nbytes, 0xff)
+		lrex_write_char  (&dst, LRE_SEP_NEGATIVE)
+	else:
+		s = intobj.to_bytes(nbytes, 'big')
+
+		lrex_write_char  (&dst, LRE_TAG_NUMBER_POSITIVE_BIG)
+		lrex_write_uint16(&dst, nbytes)
+		lrex_write_str   (&dst, s, nbytes, 0)
+		lrex_write_char  (&dst, LRE_SEP_POSITIVE)
+
+	lre_buffer_set_size_distance(lrbuf, dst)
+
+
 cdef packbuffer(lre_buffer_t *lrbuf, object key):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
 	cdef const uint8_t *s
 	cdef Py_ssize_t size
+
+	cdef int     int_overflow
+	cdef int64_t int_value
 
 	if not isinstance(key, list):
 		key = [key]
@@ -139,7 +186,12 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 			lre_pack_str(lrbuf, s, size, LRE_MOD_STRING_UTF8, &error)
 
 		elif isinstance(i, int):
-			lre_pack_int(lrbuf, i, &error)
+			int_value = PyLong_AsLongLongAndOverflow(i, &int_overflow)
+
+			if not int_overflow:
+				lre_pack_int(lrbuf, int_value, &error)
+			else:
+				return packbufferbigint(lrbuf, i)
 
 		elif isinstance(i, bytes):
 			lre_pack_str(lrbuf, i, len(i), LRE_MOD_STRING_RAW, &error)
