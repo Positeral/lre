@@ -140,7 +140,7 @@ cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t 
 cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
 	cdef uint8_t *dst
-	cdef uint16_t nbytes = (intobj.bit_length() + 7) // 8
+	cdef int nbytes = (intobj.bit_length() + 7) // 8
 	cdef bytes s
 
 	if nbytes > 0xffff:
