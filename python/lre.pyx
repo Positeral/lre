@@ -203,7 +203,7 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 			lre_pack_float(lrbuf, i, &error)
 
 		elif isinstance(i, list):
-			return packbuffer(lrbuf, i)
+			packbuffer(lrbuf, i)
 
 		else:
 			raise ValueError('type <%s> is unsupported' % type(i).__name__)
