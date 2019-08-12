@@ -1,6 +1,6 @@
 import os
 from setuptools.extension import Extension
-from setuptools import setup
+from setuptools import setup, find_packages
 from Cython.Build import cythonize
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
@@ -17,10 +17,10 @@ classifiers = [
     'Programming Language :: Python'
 ]
 
-ext = Extension('lre', ['lre.pyx'], include_dirs=[includedir])
+ext = Extension('lre.clre', ['lre/lre.pyx'], include_dirs=[includedir])
 
 setup(name='lre',
-      packages=['lre'],
+      packages=find_packages(),
       version='0.0.1',
       license='BSD License',
       author='Arthur Goncharuk',
