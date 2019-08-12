@@ -20,7 +20,7 @@ Data types:
 
 Limits:
 * NaN not supported due to ambiguity
-* No difference between -0.0 and +0.0
+* No difference between 0, -0.0 and +0.0, 1 and 1.0
 * Built-in float-point range is -281474976710655.0, 281474976710655.0
 * Built-in integer range is -9223372036854775808, 9223372036854775807
 
