@@ -260,8 +260,3 @@ cdef class LRE:
 
 		return self.hndl_key
 
-lre = LRE(4096)
-pack = lre.pack
-load = lre.load
-dumps = pack
-loads = load
