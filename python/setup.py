@@ -1,7 +1,14 @@
 import os
+import sys
 from setuptools.extension import Extension
 from setuptools import setup, find_packages
-from Cython.Build import cythonize
+
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    print('Cython not installed.')
+    print('Please, install Cython from http://www.cython.org')
+    sys.exit(1)
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
 includedir = os.path.normpath(os.path.join(scriptdir, '..'))
