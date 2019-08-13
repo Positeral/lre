@@ -40,6 +40,7 @@ setup(name='lre',
       long_description_content_type="text/markdown",
       url="https://github.com/Positeral/lre/python",
       classifiers=classifiers,
+      keywords='lre lexicographical serializer composite-keys binding',
       ext_modules=cythonize(ext, build_dir='build'),
       package_data={'lre': ['*.pyx', '*.pxd']}
 )
