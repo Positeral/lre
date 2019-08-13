@@ -14,12 +14,18 @@ Limits:
 * No difference between 0, -0.0 and +0.0, between 1 and 1.0
 * Big integers are limited by 524280 bits (2^524280 - 1)
 
+### Installation from source
+
+First you'll need [Cython](https://cython.org) (e.g. `pip install cython`).
+```
+pip install git+https://github.com/Positeral/lre.git#subdirectory=python
+```
+
 ### Usage
 ```python
 >>> lre.dumps(['email', 'home@cern'])
 b'X656d61696cL+X686f6d65406365726eL+'
 ```
-
 Natural comparing of numbers:
 ```python
 >>> lre.dumps(123) == lre.dumps(123.0)
@@ -51,4 +57,4 @@ b'X6b6579L+'
 This "flat behavior" is necessary for easy and unambiguous key concatenation.
 
 ### License
-Python binding of LRE is licensed under BSD 2-Clause License.
+Python binding of LRE is licensed under the BSD 2-Clause License.
