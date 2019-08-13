@@ -16,6 +16,8 @@ includedir = os.path.normpath(os.path.join(scriptdir, '..'))
 with open(os.path.join(scriptdir, 'README.md')) as f:
     long_description = f.read()
 
+ext = Extension('lre.clre', ['lre/lre.pyx'], include_dirs=[includedir])
+
 classifiers = [
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Developers',
@@ -23,8 +25,6 @@ classifiers = [
     'Programming Language :: Cython',
     'Programming Language :: Python'
 ]
-
-ext = Extension('lre.clre', ['lre/lre.pyx'], include_dirs=[includedir])
 
 setup(name='lre',
       packages=find_packages(),
