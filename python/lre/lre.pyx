@@ -5,6 +5,7 @@ from cpython.bytes cimport PyBytes_FromStringAndSize
 
 cdef extern from *:
 	const char *PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size) except? NULL
+	int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except? -1
 	long long PyLong_AsLongLongAndOverflow(object obj, int *overflow) except? -1
 
 
@@ -139,7 +140,7 @@ cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t 
 cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
 	cdef uint8_t *dst
-	cdef uint16_t nbytes = (intobj.bit_length() + 7) // 8
+	cdef int nbytes = (intobj.bit_length() + 7) // 8
 	cdef bytes s
 
 	if nbytes > 0xffff:
@@ -171,8 +172,9 @@ cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 
 cdef packbuffer(lre_buffer_t *lrbuf, object key):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
-	cdef const uint8_t *s
-	cdef Py_ssize_t size
+
+	cdef const uint8_t *str_value
+	cdef Py_ssize_t     str_size
 
 	cdef int     int_overflow
 	cdef int64_t int_value
@@ -182,8 +184,8 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 
 	for i in key:
 		if isinstance(i, unicode):
-			s = <const uint8_t *> PyUnicode_AsUTF8AndSize(i, &size)
-			lre_pack_str(lrbuf, s, size, LRE_MOD_STRING_UTF8, &error)
+			str_value = <const uint8_t *> PyUnicode_AsUTF8AndSize(i, &str_size)
+			lre_pack_str(lrbuf, str_value, str_size, LRE_MOD_STRING_UTF8, &error)
 
 		elif isinstance(i, int):
 			int_value = PyLong_AsLongLongAndOverflow(i, &int_overflow)
@@ -194,13 +196,14 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 				return packbufferbigint(lrbuf, i)
 
 		elif isinstance(i, bytes):
-			lre_pack_str(lrbuf, i, len(i), LRE_MOD_STRING_RAW, &error)
+			PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
+			lre_pack_str(lrbuf, str_value, str_size, LRE_MOD_STRING_RAW, &error)
 
 		elif isinstance(i, float):
 			lre_pack_float(lrbuf, i, &error)
 
 		elif isinstance(i, list):
-			return packbuffer(lrbuf, i)
+			packbuffer(lrbuf, i)
 
 		else:
 			raise ValueError('type <%s> is unsupported' % type(i).__name__)
@@ -257,8 +260,3 @@ cdef class LRE:
 
 		return self.hndl_key
 
-lre = LRE(4096)
-pack = lre.pack
-load = lre.load
-dumps = pack
-loads = load

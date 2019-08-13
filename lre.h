@@ -717,12 +717,15 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 			uint64_t fraction = lrex_negate_negative((value + integral) * 1e15 - 0.5);
 			uint8_t  nbytes   = lrex_count_nbytes(integral);
 			
-			/* Decimal inversion */
-			fraction = lrex_max10[15] - fraction;
-			
 			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(nbytes));
 			lrex_write_uint64n(&dst, ~integral, nbytes);
-			lrex_write_decimal(&dst, fraction, 15);
+
+			if (lre_likely(fraction)) {
+				/* Decimal inversion */
+				fraction = lrex_max10[15] - fraction;
+				lrex_write_decimal(&dst, fraction, 15);
+			}
+
 			lrex_write_char   (&dst, LRE_SEP_NEGATIVE);
 		}
 		else {
@@ -732,7 +735,11 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 			
 			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(nbytes));
 			lrex_write_uint64n(&dst, integral, nbytes);
-			lrex_write_decimal(&dst, fraction, 15);
+
+			if (lre_likely(fraction)) {
+				lrex_write_decimal(&dst, fraction, 15);
+			}
+
 			lrex_write_char   (&dst, LRE_SEP_POSITIVE);
 		}
 		
