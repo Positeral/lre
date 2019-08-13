@@ -23,7 +23,10 @@ classifiers = [
     'Intended Audience :: Developers',
     'License :: OSI Approved :: BSD License',
     'Programming Language :: Cython',
-    'Programming Language :: Python'
+    'Programming Language :: Python',
+    'Programming Language :: C',
+    'Topic :: Software Development :: Libraries',
+    'Topic :: Database'
 ]
 
 setup(name='lre',
