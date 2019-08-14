@@ -768,8 +768,8 @@ typedef struct lre_loader_t {
 	void *app_private;
 	int (*handler_int)     (lre_loader_t *loader, int64_t value);
 	int (*handler_float)   (lre_loader_t *loader, double value);
+	int (*handler_inf)     (lre_loader_t *loader, lre_tag_t tag);
 	int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod);
-	int (*handler_inf)     (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
 	int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
 	int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
 } lre_loader_t;
@@ -794,8 +794,8 @@ int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre
 
 
 lre_decl
-int lre_loader_default_handler_inf(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
-	double value = lrex_tag_is_negative(info->tag) ? -INFINITY : INFINITY;
+int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
+	double value = lrex_tag_is_negative(tag) ? -INFINITY : INFINITY;
 
 	if (lre_likely(loader->handler_float)) {
 		return loader->handler_float(loader, value);
@@ -856,7 +856,7 @@ int lre_load_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 
 
 lre_decl
-int lre_load_number_bignum(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info, lre_error_t *error) {
+int lre_load_number_bignum(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
 	return lre_fail(LRE_ERROR_RANGE, error);
 }
 
@@ -870,11 +870,11 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 	lre_slice_t srcslice = *slice;
 	
 	if (lre_unlikely(lrex_tag_is_number_big(tag))) {
-		return lre_load_number_bignum(loader, &srcslice, &info, error);
+		return lre_load_number_bignum(loader, tag, &srcslice, error);
 	}
 
 	if (lre_unlikely(lrex_tag_is_number_inf(tag))) {
-		if (lre_unlikely(loader->handler_inf(loader, &srcslice, &info) != LRE_OK)) {
+		if (lre_unlikely(loader->handler_inf(loader, tag) != LRE_OK)) {
 			return lre_fail(LRE_ERROR_HANDLER, error);
 		}
 
@@ -901,7 +901,7 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 		double value;
 
 		if (lre_unlikely(info.nbytes_integral > 6 || info.ndigits_fraction > 15)) {
-			return lre_load_number_bignum(loader, &srcslice, &info, error);
+			return lre_load_number_bignum(loader, tag, &srcslice, error);
 		}
 
 		integral = lrex_read_uint64n(&slice->src, info.nbytes_integral, mask);
@@ -922,14 +922,14 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 	/* Integer */
 	else {
 		if (lre_unlikely(info.nbytes_integral > 8)) {
-			return lre_load_number_bignum(loader, &srcslice, &info, error);
+			return lre_load_number_bignum(loader, tag, &srcslice, error);
 		}
 
 		integral = lrex_read_uint64n(&slice->src, info.nbytes_integral, mask);
 
 		if (lrex_tag_is_negative(tag)) {
 			if (lre_unlikely(integral > UINT64_C(9223372036854775808))) {
-				return lre_load_number_bignum(loader, &srcslice, &info, error);
+				return lre_load_number_bignum(loader, tag, &srcslice, error);
 			}
 
 			if (lre_unlikely(loader->handler_int(loader, lrex_negate_positive(integral)) != LRE_OK)) {
@@ -938,7 +938,7 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 		}
 		else {
 			if (lre_unlikely(integral > UINT64_C(9223372036854775807))) {
-				return lre_load_number_bignum(loader, &srcslice, &info, error);
+				return lre_load_number_bignum(loader, tag, &srcslice, error);
 			}
 
 			if (lre_unlikely(loader->handler_int(loader, integral) != LRE_OK)) {
