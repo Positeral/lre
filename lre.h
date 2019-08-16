@@ -755,10 +755,10 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
  * */
 typedef struct {
 	lre_tag_t tag;
+	uint8_t   mask;
 	ptrdiff_t nbytes_integral;  /* Number of encoded bytes */
 	ptrdiff_t ndigits_fraction; /* Number of digits after integer part */
 } lre_number_info_t;
-
 
 typedef struct lre_loader_t lre_loader_t;
 
@@ -856,22 +856,78 @@ int lre_load_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 
 
 lre_decl
-int lre_load_number_bignum(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
-	return lre_fail(LRE_ERROR_RANGE, error);
+int lrex_load_number_integer(lre_loader_t *loader, lre_number_info_t *info, lre_slice_t *slice, lre_error_t *error) {
+	uint64_t integral;
+
+	if (lre_unlikely(info->nbytes_integral > 8 || lrex_tag_is_number_big(info->tag))) {
+		if (lre_unlikely(loader->handler_bigint(loader, slice, info) != LRE_OK)) {
+			return lre_fail(LRE_ERROR_HANDLER, error);
+		}
+
+		return LRE_OK;
+	}
+
+	integral = lrex_read_uint64n(&slice->src, info->nbytes_integral, info->mask);
+
+	if (info->mask) {
+		if (lre_unlikely(integral > UINT64_C(9223372036854775808))) {
+			return lre_fail(LRE_ERROR_RANGE, error);
+		}
+
+		if (lre_unlikely(loader->handler_int(loader, lrex_negate_positive(integral)) != LRE_OK)) {
+			return lre_fail(LRE_ERROR_HANDLER, error);
+		}
+	}
+	else {
+		if (lre_unlikely(integral > UINT64_C(9223372036854775807))) {
+			return lre_fail(LRE_ERROR_RANGE, error);
+		}
+
+		if (lre_unlikely(loader->handler_int(loader, integral) != LRE_OK)) {
+			return lre_fail(LRE_ERROR_HANDLER, error);
+		}
+	}
+
+	return LRE_OK;
+}
+
+
+lre_decl
+int lrex_load_number_float(lre_loader_t *loader, lre_number_info_t *info, lre_slice_t *slice, lre_error_t *error) {
+	uint64_t integral;
+	uint64_t fraction;
+	double value;
+
+	if (lre_unlikely(info->nbytes_integral > 6 || info->ndigits_fraction > 15)) {
+		if (lre_unlikely(loader->handler_bigfloat(loader, slice, info) != LRE_OK)) {
+			return lre_fail(LRE_ERROR_HANDLER, error);
+		}
+
+		return LRE_OK;
+	}
+
+	integral = lrex_read_uint64n(&slice->src, info->nbytes_integral, info->mask);
+	fraction = lrex_read_decimal(&slice->src, info->ndigits_fraction);
+
+	if (info->mask) {
+		fraction = lrex_max10[info->ndigits_fraction] - fraction;
+		value = -(integral + (fraction / lrex_pow10[info->ndigits_fraction]));
+	}
+	else {
+		value = integral + (fraction / lrex_pow10[info->ndigits_fraction]);
+	}
+
+	if (lre_unlikely(loader->handler_float(loader, value) != LRE_OK)) {
+		return lre_fail(LRE_ERROR_HANDLER, error);
+	}
+
+	return LRE_OK;
 }
 
 
 lre_decl // TODO
 int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
-	uint8_t mask;
-	uint64_t integral;
-	uint64_t fraction;
-	lre_number_info_t info = {tag, 0, 0};
-	lre_slice_t srcslice = *slice;
-	
-	if (lre_unlikely(lrex_tag_is_number_big(tag))) {
-		return lre_load_number_bignum(loader, tag, &srcslice, error);
-	}
+	lre_number_info_t info;
 
 	if (lre_unlikely(lrex_tag_is_number_inf(tag))) {
 		if (lre_unlikely(loader->handler_inf(loader, tag) != LRE_OK)) {
@@ -880,74 +936,35 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 
 		return LRE_OK;
 	}
-	
-	if (lrex_tag_is_negative(tag)) {
-		mask = 0xff;
+
+	info.tag = tag;
+	info.mask = 0xff * lrex_tag_is_negative(tag);
+
+	if (lre_unlikely(lrex_tag_is_number_big(tag))) {
+		if (lre_unlikely(lre_slice_len(slice) < (4+16))) {
+			return lre_fail(LRE_ERROR_LENGTH, error);
+		}
+
+		info.nbytes_integral = lrex_read_uint16(&slice->src, info.mask);
+	}
+	else if (info.mask) {
 		info.nbytes_integral = lrex_nbytes_by_tag_negative(tag);
 	}
 	else {
-		mask = 0x00;
 		info.nbytes_integral = lrex_nbytes_by_tag_positive(tag);
 	}
 
 	info.ndigits_fraction = lre_slice_len(slice) - (info.nbytes_integral * 2);
-	
+
 	if (lre_unlikely(info.ndigits_fraction < 0)) {
 		return lre_fail(LRE_ERROR_LENGTH, error);
 	}
 
-	/* Float-point */
 	if (info.ndigits_fraction) {
-		double value;
-
-		if (lre_unlikely(info.nbytes_integral > 6 || info.ndigits_fraction > 15)) {
-			return lre_load_number_bignum(loader, tag, &srcslice, error);
-		}
-
-		integral = lrex_read_uint64n(&slice->src, info.nbytes_integral, mask);
-		fraction = lrex_read_decimal(&slice->src, info.ndigits_fraction);
-
-		if (lrex_tag_is_negative(tag)) {
-			fraction = lrex_max10[info.ndigits_fraction] - fraction;
-			value = -(integral + (fraction / lrex_pow10[info.ndigits_fraction]));
-		}
-		else {
-			value = integral + (fraction / lrex_pow10[info.ndigits_fraction]);
-		}
-
-		if (lre_unlikely(loader->handler_float(loader, value) != LRE_OK)) {
-			return lre_fail(LRE_ERROR_HANDLER, error);
-		}
+		return lrex_load_number_float(loader, &info, slice, error);
 	}
-	/* Integer */
-	else {
-		if (lre_unlikely(info.nbytes_integral > 8)) {
-			return lre_load_number_bignum(loader, tag, &srcslice, error);
-		}
 
-		integral = lrex_read_uint64n(&slice->src, info.nbytes_integral, mask);
-
-		if (lrex_tag_is_negative(tag)) {
-			if (lre_unlikely(integral > UINT64_C(9223372036854775808))) {
-				return lre_fail(LRE_ERROR_RANGE, error);
-			}
-
-			if (lre_unlikely(loader->handler_int(loader, lrex_negate_positive(integral)) != LRE_OK)) {
-				return lre_fail(LRE_ERROR_HANDLER, error);
-			}
-		}
-		else {
-			if (lre_unlikely(integral > UINT64_C(9223372036854775807))) {
-				return lre_fail(LRE_ERROR_RANGE, error);
-			}
-
-			if (lre_unlikely(loader->handler_int(loader, integral) != LRE_OK)) {
-				return lre_fail(LRE_ERROR_HANDLER, error);
-			}
-		}
-	}
-	
-	return LRE_OK;
+	return lrex_load_number_integer(loader, &info, slice, error);
 }
 
 
