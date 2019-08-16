@@ -79,6 +79,7 @@ cdef extern from 'lre.h':
 	int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error)
 	uint8_t *lre_buffer_end(lre_buffer_t *buf)
 	void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end)
+	void lre_buffer_reset_fast(lre_buffer_t *buf)
 	int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error)
 	void lre_buffer_close(lre_buffer_t *buf)
 
@@ -274,6 +275,8 @@ cdef class LRE:
 
 	cpdef bytes pack(self, key):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
+
+		lre_buffer_reset_fast(self.lrbuf)
 
 		try:
 			packbuffer(self.lrbuf, key)
