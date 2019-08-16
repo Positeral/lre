@@ -2,8 +2,13 @@ from cython cimport final
 from libc.stdint cimport uint8_t, uint16_t, int64_t, uint64_t
 from cpython.bytes cimport PyBytes_FromStringAndSize
 
+cdef uint8_t tmp65535[65535]
+
 
 cdef extern from *:
+	ctypedef struct PyObject
+	ctypedef struct PyLongObject
+
 	const char *PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size) except? NULL
 	int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except? -1
 	long long PyLong_AsLongLongAndOverflow(object obj, int *overflow) except? -1
@@ -12,6 +17,12 @@ cdef extern from *:
 	# https://mail.python.org/pipermail/python-list/2006-August/372367.html
 	# https://github.com/python/cpython/blob/3c8724fc60163f4f3c3b0d531c84cc7b36783f82/Include/longobject.h#L136
 	object _PyLong_FromByteArray(const unsigned char* bytes, size_t n, int little_endian, int is_signed)
+
+	# https://github.com/python/cpython/blob/3.7/Include/longobject.h#L144
+	int _PyLong_AsByteArray(PyLongObject *v, unsigned char *bytes, size_t n, int little_endian, int is_signed) except? -1
+
+	# https://github.com/python/cpython/blob/3.7/Include/longobject.h#L110
+	size_t _PyLong_NumBits(object v) except *
 
 
 # From lre.h
@@ -150,39 +161,26 @@ cdef int loader_handler_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_num
 	cdef lre_error_t error = LRE_ERROR_NOTHING
 
 	cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
-	cdef uint8_t   fastbuf[32]
-	cdef uint8_t  *tmp = fastbuf
 	cdef object    value
 
-	if nbytes > 32:
-		if lre_buffer_require(lre.lrbuf, nbytes, &error) != LRE_OK:
-			raise MemoryError(lre_strerror(error).decode('utf8'))
-		else:
-			tmp = lre.lrbuf.data
+	if info.mask:
+		lrex_read_str(&slice.src, tmp65535, nbytes, 0xff)
+		value = _PyLong_FromByteArray(tmp65535, nbytes, 0, 0)
+		value = -value
+	else:
+		lrex_read_str(&slice.src, tmp65535, nbytes, 0x00)
+		value = _PyLong_FromByteArray(tmp65535, nbytes, 0, 0)
 
-	try:
-		if info.mask:
-			lrex_read_str(&slice.src, tmp, nbytes, 0xff)
-			value = _PyLong_FromByteArray(tmp, nbytes, 0, 0)
-			value = -value
-		else:
-			lrex_read_str(&slice.src, tmp, nbytes, 0x00)
-			value = _PyLong_FromByteArray(tmp, nbytes, 0, 0)
-
-		lre.hndl_key.append(value)
-	finally:
-		if tmp != fastbuf:
-			if lre_buffer_reset(lre.lrbuf, &error) != LRE_OK:
-				raise MemoryError(lre_strerror(error).decode('utf8'))
+	lre.hndl_key.append(value)
 
 	return LRE_OK
 
 
 cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
+
 	cdef uint8_t *dst
-	cdef int nbytes = (intobj.bit_length() + 7) // 8
-	cdef bytes s
+	cdef size_t   nbytes = (_PyLong_NumBits(intobj) + 7) // 8
 
 	if nbytes > 0xffff:
 		raise OverflowError('big int out of range')
@@ -194,18 +192,19 @@ cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 	dst = lre_buffer_end(lrbuf)
 
 	if intobj < 0:
-		s = (-intobj).to_bytes(nbytes, 'big')
+		intobj = -intobj
+		_PyLong_AsByteArray(<PyLongObject *> intobj, tmp65535, nbytes, 0, 0)
 
 		lrex_write_char  (&dst, LRE_TAG_NUMBER_NEGATIVE_BIG)
 		lrex_write_uint16(&dst, ~nbytes)
-		lrex_write_str   (&dst, s, nbytes, 0xff)
+		lrex_write_str   (&dst, tmp65535, nbytes, 0xff)
 		lrex_write_char  (&dst, LRE_SEP_NEGATIVE)
 	else:
-		s = intobj.to_bytes(nbytes, 'big')
+		_PyLong_AsByteArray(<PyLongObject *> intobj, tmp65535, nbytes, 0, 0)
 
 		lrex_write_char  (&dst, LRE_TAG_NUMBER_POSITIVE_BIG)
 		lrex_write_uint16(&dst, nbytes)
-		lrex_write_str   (&dst, s, nbytes, 0)
+		lrex_write_str   (&dst, tmp65535, nbytes, 0)
 		lrex_write_char  (&dst, LRE_SEP_POSITIVE)
 
 	lre_buffer_set_size_distance(lrbuf, dst)
