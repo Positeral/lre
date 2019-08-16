@@ -599,9 +599,15 @@ void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
 
 
 lre_decl
-int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
+void lre_buffer_reset_fast(lre_buffer_t *buf) {
 	buf->size = 0;
 	buf->data[0] = '\0';
+}
+
+
+lre_decl
+int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
+	lre_buffer_reset_fast(buf);
 
 	if (lre_unlikely(buf->capacity != buf->reserved)) {
 		uint8_t *data = lre_std_realloc(buf->data, buf->reserved);
