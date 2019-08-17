@@ -163,6 +163,9 @@ cdef int loader_handler_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_num
 	cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
 	cdef object    value
 
+	if nbytes > 0xffff:
+		raise OverflowError('big int out of range')
+
 	if info.mask:
 		lrex_read_str(&slice.src, tmp65535, nbytes, 0xff)
 		value = _PyLong_FromByteArray(tmp65535, nbytes, 0, 0)
