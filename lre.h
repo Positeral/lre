@@ -785,19 +785,19 @@ typedef struct lre_loader_t {
 
 lre_decl
 int lre_loader_default_handler_int(lre_loader_t *loader, int64_t value) {
-	return LRE_OK;
+	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_float(lre_loader_t *loader, double value) {
-	return LRE_OK;
+	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) {
-	return LRE_OK;
+	return LRE_FAIL;
 }
 
 
@@ -815,13 +815,13 @@ int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 
 lre_decl
 int lre_loader_default_handler_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
-	return LRE_OK;
+	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_bigfloat(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
-	return LRE_OK;
+	return LRE_FAIL;
 }
 
 
