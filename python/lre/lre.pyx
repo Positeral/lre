@@ -16,7 +16,7 @@ cdef extern from *:
 
 	# https://stackoverflow.com/questions/18290507/python-extension-construct-and-inspect-large-integers-efficiently
 	# https://mail.python.org/pipermail/python-list/2006-August/372367.html
-	# https://github.com/python/cpython/blob/3c8724fc60163f4f3c3b0d531c84cc7b36783f82/Include/longobject.h#L136
+	# https://github.com/python/cpython/blob/3.7/Include/longobject.h#L127
 	object _PyLong_FromByteArray(const unsigned char* bytes, size_t n, int little_endian, int is_signed)
 
 	# https://github.com/python/cpython/blob/3.7/Include/longobject.h#L144
