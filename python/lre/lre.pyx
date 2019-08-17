@@ -120,6 +120,8 @@ cdef extern from 'lre.h':
 		int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
 		int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
 
+		ptrdiff_t builtin_nfraction
+
 	void lre_loader_init(lre_loader_t *loader, void *app_private)
 	int  lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) except? LRE_FAIL
 
@@ -275,6 +277,12 @@ cdef class LRE:
 	def __init__(self, int reserve):
 		if not self.lrbuf:
 			raise MemoryError(lre_strerror(self.error).decode('utf8'))
+
+	cpdef opt_builtin_nfraction(self, int ndigits):
+		if ndigits > 15:
+			raise ValueError('ndigits must be <= 15')
+
+		self.lrloader.builtin_nfraction = ndigits
 
 	cpdef bytes pack(self, key):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
