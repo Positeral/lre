@@ -143,7 +143,7 @@ cdef int loader_handler_float(lre_loader_t *loader, double value) except? LRE_FA
 
 cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL:
 	cdef LRE lre = <LRE> loader.app_private
-	cdef ptrdiff_t nbytes = lre_slice_len(slice) / 2
+	cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
 	cdef bytes s = PyBytes_FromStringAndSize(<char *> 0, nbytes)
 
 	lrex_read_str(&slice.src, <uint8_t *> s, nbytes, 0)
@@ -183,7 +183,7 @@ cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
 
 	cdef uint8_t *dst
-	cdef size_t   nbytes = (_PyLong_NumBits(intobj) + 7) // 8
+	cdef size_t   nbytes = (_PyLong_NumBits(intobj) + 7) >> 3
 
 	if nbytes > 0xffff:
 		raise OverflowError('big int out of range')
