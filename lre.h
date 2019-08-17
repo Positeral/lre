@@ -778,6 +778,8 @@ typedef struct lre_loader_t {
 	int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod);
 	int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
 	int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
+
+	ptrdiff_t builtin_nfraction;
 } lre_loader_t;
 
 
@@ -833,6 +835,8 @@ void lre_loader_init(lre_loader_t *loader, void *app_private) {
 	loader->handler_inf      = &lre_loader_default_handler_inf;
 	loader->handler_bigint   = &lre_loader_default_handler_bigint;
 	loader->handler_bigfloat = &lre_loader_default_handler_bigfloat;
+
+	loader->builtin_nfraction = 15;
 }
 
 
@@ -904,7 +908,7 @@ int lrex_load_number_float(lre_loader_t *loader, lre_number_info_t *info, lre_sl
 	uint64_t fraction;
 	double value;
 
-	if (lre_unlikely(info->nbytes_integral > 6 || info->ndigits_fraction > 15)) {
+	if (lre_unlikely(info->nbytes_integral > 6 || info->ndigits_fraction > loader->builtin_nfraction)) {
 		if (lre_unlikely(loader->handler_bigfloat(loader, slice, info) != LRE_OK)) {
 			return lre_fail(LRE_ERROR_HANDLER, error);
 		}
