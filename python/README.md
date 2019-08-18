@@ -6,7 +6,6 @@ Data types:
 * String (unicode, bytes)
 * Integer
 * Float
-* Decimal
 * +INF and -INF are supported
 
 Limits:
