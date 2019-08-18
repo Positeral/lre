@@ -23,7 +23,10 @@ classifiers = [
     'Intended Audience :: Developers',
     'License :: OSI Approved :: BSD License',
     'Programming Language :: Cython',
-    'Programming Language :: Python'
+    'Programming Language :: Python',
+    'Programming Language :: C',
+    'Topic :: Software Development :: Libraries',
+    'Topic :: Database'
 ]
 
 setup(name='lre',
@@ -31,11 +34,13 @@ setup(name='lre',
       version='0.0.1',
       license='BSD License',
       author='Arthur Goncharuk',
+      author_email='af3.inet@gmail.com',
       description='Fast (de)serializer for lexicographical composite keys',
       long_description=long_description,
       long_description_content_type="text/markdown",
       url="https://github.com/Positeral/lre/python",
       classifiers=classifiers,
+      keywords='lre lexicographical serializer composite-keys binding',
       ext_modules=cythonize(ext, build_dir='build'),
       package_data={'lre': ['*.pyx', '*.pxd']}
 )

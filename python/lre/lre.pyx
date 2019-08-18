@@ -1,12 +1,29 @@
 from cython cimport final
-from libc.stdint cimport uint8_t, uint16_t, int64_t
+from libc.stdint cimport uint8_t, uint16_t, int64_t, uint64_t
 from cpython.bytes cimport PyBytes_FromStringAndSize
 
 
+cdef uint8_t tmp65535[65535]
+
+
 cdef extern from *:
+	ctypedef struct PyObject
+	ctypedef struct PyLongObject
+
 	const char *PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size) except? NULL
 	int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except? -1
 	long long PyLong_AsLongLongAndOverflow(object obj, int *overflow) except? -1
+
+	# https://stackoverflow.com/questions/18290507/python-extension-construct-and-inspect-large-integers-efficiently
+	# https://mail.python.org/pipermail/python-list/2006-August/372367.html
+	# https://github.com/python/cpython/blob/3.7/Include/longobject.h#L127
+	object _PyLong_FromByteArray(const unsigned char* bytes, size_t n, int little_endian, int is_signed)
+
+	# https://github.com/python/cpython/blob/3.7/Include/longobject.h#L144
+	int _PyLong_AsByteArray(PyLongObject *v, unsigned char *bytes, size_t n, int little_endian, int is_signed) except? -1
+
+	# https://github.com/python/cpython/blob/3.7/Include/longobject.h#L110
+	size_t _PyLong_NumBits(object v) except *
 
 
 # From lre.h
@@ -58,10 +75,11 @@ cdef extern from 'lre.h':
 		LRE_MOD_STRING_RAW
 		LRE_MOD_STRING_UTF8
 
-	void lrex_write_char(uint8_t **dst, uint8_t value)
-	void lrex_write_uint16(uint8_t **dst, uint16_t value)
-	void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask)
-	void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mask)
+	void     lrex_write_char(uint8_t **dst, uint8_t value)
+	void     lrex_write_uint16(uint8_t **dst, uint16_t value)
+	void     lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask)
+	void     lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mask)
+	uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes, uint8_t mask)
 
 	ctypedef struct lre_buffer_t:
 		uint8_t *data
@@ -70,11 +88,12 @@ cdef extern from 'lre.h':
 		size_t   reserved
 
 	lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error)
-	int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error)
-	uint8_t *lre_buffer_end(lre_buffer_t *buf)
-	void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end)
-	int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error)
-	void lre_buffer_close(lre_buffer_t *buf)
+	int           lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error)
+	uint8_t      *lre_buffer_end(lre_buffer_t *buf)
+	void          lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end)
+	void          lre_buffer_reset_fast(lre_buffer_t *buf)
+	int           lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error)
+	void          lre_buffer_close(lre_buffer_t *buf)
 
 	int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mod, lre_error_t *error)
 	int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error)
@@ -88,6 +107,7 @@ cdef extern from 'lre.h':
 
 	ctypedef struct lre_number_info_t:
 		lre_tag_t tag
+		uint8_t   mask
 		ptrdiff_t nbytes_integral  # Number of encoded bytes
 		ptrdiff_t ndigits_fraction # Number of digits after integer part
 
@@ -96,12 +116,14 @@ cdef extern from 'lre.h':
 		int (*handler_int)     (lre_loader_t *loader, int64_t value) except? LRE_FAIL
 		int (*handler_float)   (lre_loader_t *loader, double value)  except? LRE_FAIL
 		int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL
-		int (*handler_inf)     (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
+		int (*handler_inf)     (lre_loader_t *loader, lre_tag_t tag) except? LRE_FAIL
 		int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
 		int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
 
+		ptrdiff_t builtin_nfraction
+
 	void lre_loader_init(lre_loader_t *loader, void *app_private)
-	int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) except? LRE_FAIL
+	int  lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) except? LRE_FAIL
 
 	const char *lre_strerror(lre_error_t error)
 
@@ -124,7 +146,7 @@ cdef int loader_handler_float(lre_loader_t *loader, double value) except? LRE_FA
 
 cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL:
 	cdef LRE lre = <LRE> loader.app_private
-	cdef ptrdiff_t nbytes = lre_slice_len(slice) / 2
+	cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
 	cdef bytes s = PyBytes_FromStringAndSize(<char *> 0, nbytes)
 
 	lrex_read_str(&slice.src, <uint8_t *> s, nbytes, 0)
@@ -137,11 +159,34 @@ cdef int loader_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t 
 	return LRE_OK
 
 
-cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
+cdef int loader_handler_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL:
+	cdef LRE lre = <LRE> loader.app_private
 	cdef lre_error_t error = LRE_ERROR_NOTHING
+
+	cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
+	cdef object    value
+
+	if nbytes > 0xffff:
+		raise OverflowError('big int out of range')
+
+	if info.mask:
+		lrex_read_str(&slice.src, tmp65535, nbytes, 0xff)
+		value = _PyLong_FromByteArray(tmp65535, nbytes, 0, 0)
+		value = -value
+	else:
+		lrex_read_str(&slice.src, tmp65535, nbytes, 0x00)
+		value = _PyLong_FromByteArray(tmp65535, nbytes, 0, 0)
+
+	lre.hndl_key.append(value)
+
+	return LRE_OK
+
+
+cdef pack_buffer_bigint(lre_buffer_t *lrbuf, object intobj):
+	cdef lre_error_t error = LRE_ERROR_NOTHING
+
 	cdef uint8_t *dst
-	cdef int nbytes = (intobj.bit_length() + 7) // 8
-	cdef bytes s
+	cdef size_t   nbytes = (_PyLong_NumBits(intobj) + 7) >> 3
 
 	if nbytes > 0xffff:
 		raise OverflowError('big int out of range')
@@ -153,24 +198,25 @@ cdef packbufferbigint(lre_buffer_t *lrbuf, object intobj):
 	dst = lre_buffer_end(lrbuf)
 
 	if intobj < 0:
-		s = (-intobj).to_bytes(nbytes, 'big')
+		intobj = -intobj
+		_PyLong_AsByteArray(<PyLongObject *> intobj, tmp65535, nbytes, 0, 0)
 
 		lrex_write_char  (&dst, LRE_TAG_NUMBER_NEGATIVE_BIG)
 		lrex_write_uint16(&dst, ~nbytes)
-		lrex_write_str   (&dst, s, nbytes, 0xff)
+		lrex_write_str   (&dst, tmp65535, nbytes, 0xff)
 		lrex_write_char  (&dst, LRE_SEP_NEGATIVE)
 	else:
-		s = intobj.to_bytes(nbytes, 'big')
+		_PyLong_AsByteArray(<PyLongObject *> intobj, tmp65535, nbytes, 0, 0)
 
 		lrex_write_char  (&dst, LRE_TAG_NUMBER_POSITIVE_BIG)
 		lrex_write_uint16(&dst, nbytes)
-		lrex_write_str   (&dst, s, nbytes, 0)
+		lrex_write_str   (&dst, tmp65535, nbytes, 0)
 		lrex_write_char  (&dst, LRE_SEP_POSITIVE)
 
 	lre_buffer_set_size_distance(lrbuf, dst)
 
 
-cdef packbuffer(lre_buffer_t *lrbuf, object key):
+cdef pack_buffer(lre_buffer_t *lrbuf, object key):
 	cdef lre_error_t error = LRE_ERROR_NOTHING
 
 	cdef const uint8_t *str_value
@@ -193,7 +239,7 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 			if not int_overflow:
 				lre_pack_int(lrbuf, int_value, &error)
 			else:
-				return packbufferbigint(lrbuf, i)
+				pack_buffer_bigint(lrbuf, i)
 
 		elif isinstance(i, bytes):
 			PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
@@ -203,7 +249,7 @@ cdef packbuffer(lre_buffer_t *lrbuf, object key):
 			lre_pack_float(lrbuf, i, &error)
 
 		elif isinstance(i, list):
-			packbuffer(lrbuf, i)
+			pack_buffer(lrbuf, i)
 
 		else:
 			raise ValueError('type <%s> is unsupported' % type(i).__name__)
@@ -223,19 +269,28 @@ cdef class LRE:
 		self.lrbuf = lre_buffer_create(reserve, &self.lrerror)
 
 		lre_loader_init(&self.lrloader, <void *> self)
-		self.lrloader.handler_int   = &loader_handler_int
-		self.lrloader.handler_float = &loader_handler_float
-		self.lrloader.handler_str   = &loader_handler_str
+		self.lrloader.handler_int    = &loader_handler_int
+		self.lrloader.handler_float  = &loader_handler_float
+		self.lrloader.handler_str    = &loader_handler_str
+		self.lrloader.handler_bigint = &loader_handler_bigint
 
 	def __init__(self, int reserve):
 		if not self.lrbuf:
 			raise MemoryError(lre_strerror(self.error).decode('utf8'))
 
+	cpdef opt_builtin_nfraction(self, int ndigits):
+		if ndigits > 15:
+			raise ValueError('ndigits must be <= 15')
+
+		self.lrloader.builtin_nfraction = ndigits
+
 	cpdef bytes pack(self, key):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
 
+		lre_buffer_reset_fast(self.lrbuf)
+
 		try:
-			packbuffer(self.lrbuf, key)
+			pack_buffer(self.lrbuf, key)
 			return self.lrbuf.data[:self.lrbuf.size]
 		finally:
 			if lre_buffer_reset(self.lrbuf, &error) != LRE_OK:
