@@ -57,7 +57,7 @@ int main() {
 
 Output:
 ```
-lre: X616263H+Nffaa+M0a900000000000000+
+lre: X616263H+Nffaa+M0a9+
 len: 34
 ```
 
@@ -85,7 +85,7 @@ int handler_float(lre_loader_t *loader, double value) {
 }
 
 int main() {
-    char  *str = "X616263H+Nffaa+M0a900000000000000+";
+    char  *str = "X616263H+Nffaa+M0a9+";
     size_t len = strlen(str);
 
     lre_error_t error = 0;
