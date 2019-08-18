@@ -239,7 +239,7 @@ cdef pack_buffer(lre_buffer_t *lrbuf, object key):
 			if not int_overflow:
 				lre_pack_int(lrbuf, int_value, &error)
 			else:
-				return pack_buffer_bigint(lrbuf, i)
+				pack_buffer_bigint(lrbuf, i)
 
 		elif isinstance(i, bytes):
 			PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
