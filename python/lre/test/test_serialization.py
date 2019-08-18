@@ -164,3 +164,28 @@ class TestLimits(unittest.TestCase):
         with self.assertRaises(OverflowError):
             lre.dumps(2**524280)
 
+
+class TestBignum(unittest.TestCase):
+    def testBigBegin(self):
+        v = 0xffffffffffffffff
+        self.assertEqual(lre.dumps(v), b'U0008ffffffffffffffff+',
+                         'unexpected serialization of %r' % v)
+
+        v = -0xffffffffffffffff
+        self.assertEqual(lre.dumps(v), b'Dfff70000000000000000~',
+                         'unexpected serialization of %r' % v)
+
+        v = 9223372036854775808
+        self.assertEqual(lre.dumps(v), b'U00088000000000000000+',
+                         'unexpected serialization of %r' % v)
+
+        v = -9223372036854775809
+        self.assertEqual(lre.dumps(v), b'Dfff77ffffffffffffffe~',
+                         'unexpected serialization of %r' % v)
+
+    def testVariative(self):
+        v = [2**70, 1, []]
+        self.assertEqual(lre.dumps(v), b'U0009400000000000000000+M01+',
+                         'unexpected serialization of %r' % v)
+
+
