@@ -182,7 +182,7 @@ typedef enum {
 } lre_sep_t;
 
 
-/* Do not change value of existing numeric tags */
+/* Do NOT change value of existing numeric tags */
 typedef enum {
 	LRE_TAG_NUMBER_NEGATIVE_INF = 'C',
 	LRE_TAG_NUMBER_NEGATIVE_BIG = 'D',
@@ -260,9 +260,8 @@ int lre_fail(lre_error_t error, lre_error_t *to) {
 }
 
 /*
- * LREX LOW-LEVEL funtions.
- * This functions are designed to be as fast as possible, 
- * not to provide a coherent interface.
+ * LREX low-level functions are designed to be as fast as possible,
+ * not to provide a coherent interface. These functions may be unsafe.
  */
 
 /**
@@ -520,8 +519,8 @@ const uint8_t *lrex_memsep(const uint8_t *src, size_t size) {
 /*
  * */
 typedef struct {
-	const uint8_t *src;
-	const uint8_t *end;
+	const uint8_t *src; /* Pointer to first character */
+	const uint8_t *end; /* Pointer to last character */
 } lre_slice_t;
 
 
@@ -555,6 +554,12 @@ typedef struct {
 } lre_buffer_t;
 
 
+/**
+ * @brief Create buffer instance with reserved memory. The buffer memory is always terminated with an extra null character.
+ * @param reserve Reserved space
+ * @param error Pointer to lre_error_t or 0
+ * @return Pointer to lre_buffer_t instance if success, 0 otherwise
+ */
 lre_decl
 lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 	lre_buffer_t *buf = lre_std_calloc(1, sizeof(lre_buffer_t));
@@ -581,6 +586,13 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 }
 
 
+/**
+ * @brief Request buffer space. If capacity is too small, allocate additional memory.
+ * @param buf Pointer to lre_buffer_t
+ * @param required Required memory
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
@@ -599,12 +611,26 @@ int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 }
 
 
+/**
+ * @brief Returns pointer to next to last character.
+ *
+ * This call is mostly used for write to end of buffer.
+ * Returned pointer is invalidated after calls lre_buffer_reset(), lre_buffer_require(), lre_buffer_close().
+ *
+ * @param buf Pointer to lre_buffer_t
+ */
 lre_decl
 uint8_t *lre_buffer_end(lre_buffer_t *buf) {
 	return buf->data + buf->size;
 }
 
 
+/**
+ * @brief Set size to pointer offset distance and terminate buffer with a null character.
+ * @param buf Pointer to lre_buffer_t
+ * @param end Pointer to buffer data (tupically from lre_buffer_end())
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
 	if (lre_likely(end >= buf->data)) {
@@ -614,6 +640,10 @@ void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
 }
 
 
+/**
+ * @brief Fast version of lre_buffer_reset without memory reallocations.
+ * @param buf Pointer to lre_buffer_t
+ */
 lre_decl
 void lre_buffer_reset_fast(lre_buffer_t *buf) {
 	buf->size = 0;
@@ -621,6 +651,12 @@ void lre_buffer_reset_fast(lre_buffer_t *buf) {
 }
 
 
+/**
+ * @brief Reallocate memory, reset size to 0 and terminate buffer with a null character.
+ * @param buf Pointer to lre_buffer_t
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
 	lre_buffer_reset_fast(buf);
@@ -771,11 +807,12 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 /*
  * */
 typedef struct {
-	lre_tag_t tag;
-	uint8_t   mask;
+	lre_tag_t tag;              /* Numeric tag */
+	uint8_t   mask;             /* 0xFF for negative numbers, 0 otherwise */
 	ptrdiff_t nbytes_integral;  /* Number of encoded bytes */
 	ptrdiff_t ndigits_fraction; /* Number of digits after integer part */
 } lre_number_info_t;
+
 
 typedef struct lre_loader_t lre_loader_t;
 
