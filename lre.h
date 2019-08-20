@@ -675,7 +675,10 @@ int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
 	return LRE_OK;
 }
 
-
+/**
+ * @brief Free all buffer memory
+ * @param buf Pointer to lre_buffer_t
+ */
 lre_decl
 void lre_buffer_close(lre_buffer_t *buf) {
 	if (buf) {
@@ -689,6 +692,18 @@ void lre_buffer_close(lre_buffer_t *buf) {
  */
 
 
+/**
+ * @brief Write string into buffer
+ *
+ * String will be written in the hexadecimal representation with one character of modifier.
+ *
+ * @param buf Pointer to lre_buffer_t
+ * @param src Pointer to string
+ * @param len Length of string
+ * @param mod String modifier: LRE_MOD_STRING_RAW (also 0), LRE_MOD_STRING_UTF8
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mod, lre_error_t *error) {
 	/* tag(1) + string(len*2) + modifier(1) + separator(1) */
@@ -712,6 +727,16 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mo
 }
 
 
+/**
+ * @brief Write 64-bit signed integer value into buffer
+ *
+ * Value will be written in the hexadecimal representation byte by byte, so it length is always multiple of two.
+ *
+ * @param buf Pointer to lre_buffer_t
+ * @param value Integer value
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
 	/* tag(1) + value(16) + separator(1) */
@@ -742,6 +767,17 @@ int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
 }
 
 
+/**
+ * @brief Write double value into buffer
+ *
+ * Integral part will be written in the hexadecimal representation identically to lre_pack_int,
+ * fractional part will be continuously written in the decimal representation with 15 digits of precision.
+ *
+ * @param buf Pointer to lre_buffer_t
+ * @param value Double value
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 	if (lre_unlikely(lre_isnan(value))) {
