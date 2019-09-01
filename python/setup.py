@@ -16,7 +16,7 @@ includedir = os.path.normpath(os.path.join(scriptdir, '..'))
 with open(os.path.join(scriptdir, 'README.md')) as f:
     long_description = f.read()
 
-ext = Extension('lre.clre', ['lre/lre.pyx'], include_dirs=[includedir])
+ext = Extension('*', ['lre/*.pyx'], include_dirs=['.', includedir])
 
 classifiers = [
     'Development Status :: 3 - Alpha',
@@ -42,5 +42,6 @@ setup(name='lre',
       classifiers=classifiers,
       keywords='lre lexicographical serializer composite-keys binding',
       ext_modules=cythonize(ext, build_dir='build'),
-      package_data={'lre': ['*.pyx', '*.pxd']}
+      package_data={'lre': ['*.pyx', '*.pxd']},
+      zip_safe=False
 )
