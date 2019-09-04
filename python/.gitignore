@@ -1,3 +1,7 @@
+# Setup stuff
+lre/lre.h
+lre/pstdint.h
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
