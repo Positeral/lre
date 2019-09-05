@@ -3,6 +3,11 @@ import lre
 
 
 class TestOrder(unittest.TestCase):
+    def testTypes(self):
+        l1 = [float('-inf'), -10.5, -1, 0, 1, 10.5, float('inf'), b'', u'']
+        l2 = sorted(l1, key=lre.dumps)
+        self.assertEqual(l1, l2, 'invalid order')
+
     def testNumeric(self):
         self.assertGreater(lre.dumps(1), lre.dumps(0),
                            'invalid order')
@@ -77,6 +82,11 @@ class TestOrder(unittest.TestCase):
             0xffffffffffff,
             0xffffffffffffff
         ]
+        l2 = sorted(l1, key=lre.dumps)
+        self.assertEqual(l1, l2, 'invalid order')
+
+    def testSortingFractional(self):
+        l1 = [-0.999, -0.995, -0.8001, -0.1234, 0, 0.1, 0.1, 0.101, 0.801]
         l2 = sorted(l1, key=lre.dumps)
         self.assertEqual(l1, l2, 'invalid order')
 
@@ -188,4 +198,10 @@ class TestBignum(unittest.TestCase):
         self.assertEqual(lre.dumps(v), b'U0009400000000000000000+M01+',
                          'unexpected serialization of %r' % v)
 
+        v = [2**70, [1], [[5**50]]]
+        r = b'U0009400000000000000000+M01+U000f111b0ec57e6499a1f4b1014d3f6d59+'
+        self.assertEqual(lre.dumps(v), r,
+                         'unexpected serialization of %r' % v)
+
+        
 

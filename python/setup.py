@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 from setuptools.extension import Extension
 from setuptools import setup, find_packages
 
@@ -11,12 +12,18 @@ except ImportError:
     sys.exit(1)
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
-includedir = os.path.normpath(os.path.join(scriptdir, '..'))
+
+for fname in ['lre.h', 'pstdint.h']:
+    src = os.path.normpath(os.path.join(scriptdir, '..', fname))
+    dst = os.path.normpath(os.path.join(scriptdir, 'lre', fname))
+
+    if os.path.exists(src):
+        shutil.copy(src, dst)
 
 with open(os.path.join(scriptdir, 'README.md')) as f:
     long_description = f.read()
 
-ext = Extension('lre.clre', ['lre/lre.pyx'], include_dirs=[includedir])
+ext = Extension('*', ['lre/*.pyx'], include_dirs=['.'])
 
 classifiers = [
     'Development Status :: 3 - Alpha',
@@ -31,7 +38,7 @@ classifiers = [
 
 setup(name='lre',
       packages=find_packages(),
-      version='0.0.1',
+      version='0.0.2rc5',
       license='BSD License',
       author='Arthur Goncharuk',
       author_email='af3.inet@gmail.com',
@@ -42,5 +49,7 @@ setup(name='lre',
       classifiers=classifiers,
       keywords='lre lexicographical serializer composite-keys binding',
       ext_modules=cythonize(ext, build_dir='build'),
-      package_data={'lre': ['*.pyx', '*.pxd']}
+      package_data={'lre': ['*.pyx', '*.pxd', '*.h']},
+      headers=['lre/lre.h', 'lre/pstdint.h'],
+      zip_safe=False
 )

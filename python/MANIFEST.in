@@ -1,0 +1,4 @@
+include README.md
+global-include *.pxd
+global-include *.pyx
+global-include *.h
