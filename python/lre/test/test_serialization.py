@@ -5,7 +5,7 @@ import lre
 class TestOrder(unittest.TestCase):
     def testTypes(self):
         l1 = [float('-inf'), -10.5, -1, 0, 1, 10.5, float('inf'), b'', u'']
-        l2 = sorted(l1, ley=lre.dumps)
+        l2 = sorted(l1, key=lre.dumps)
         self.assertEqual(l1, l2, 'invalid order')
 
     def testNumeric(self):
