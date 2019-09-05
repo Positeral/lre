@@ -50,5 +50,6 @@ setup(name='lre',
       keywords='lre lexicographical serializer composite-keys binding',
       ext_modules=cythonize(ext, build_dir='build'),
       package_data={'lre': ['*.pyx', '*.pxd', '*.h']},
+      headers=['lre/lre.h', 'lre/pstdint.h'],
       zip_safe=False
 )
