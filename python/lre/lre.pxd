@@ -123,7 +123,7 @@ cdef class LRE:
 	
 	cdef buffer_write(self, key)
 
-	cdef buffer_write_bigint(self, pyint)
+	cdef buffer_write_int(self, pyint)
 
 	cdef buffer_write_decimal(self, pydecimal)
 

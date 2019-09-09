@@ -86,9 +86,6 @@ cdef class LRE:
 		cdef const uint8_t *str_value
 		cdef Py_ssize_t     str_size
 	
-		cdef int     int_overflow
-		cdef int64_t int_value
-	
 		if not isinstance(key, list):
 			key = [key]
 	
@@ -98,12 +95,7 @@ cdef class LRE:
 				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_MOD_STRING_UTF8, &error)
 	
 			elif isinstance(i, int):
-				int_value = PyLong_AsLongLongAndOverflow(i, &int_overflow)
-	
-				if not int_overflow:
-					lre_pack_int(self.lrbuffer, int_value, &error)
-				else:
-					self.buffer_write_bigint(i)
+				self.buffer_write_int(i)
 	
 			elif isinstance(i, bytes):
 				PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
@@ -121,9 +113,18 @@ cdef class LRE:
 			if error:
 				raise ValueError(lre_strerror(error).decode('utf8'))
 
-	cdef buffer_write_bigint(self, object pyint):
+	cdef buffer_write_int(self, object pyint):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
+
+		cdef int     int_overflow = 0
+		cdef int64_t int_value = PyLong_AsLongLongAndOverflow(pyint, &int_overflow)
 	
+		if not int_overflow:
+			if lre_pack_int(self.lrbuffer, int_value, &error) != LRE_OK:
+				raise ValueError(lre_strerror(error).decode('utf8'))
+			else:
+				return LRE_OK
+
 		cdef uint8_t *dst
 		cdef size_t   nbytes = (_PyLong_NumBits(pyint) + 7) >> 3
 	
