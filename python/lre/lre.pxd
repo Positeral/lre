@@ -121,11 +121,11 @@ cdef class LRE:
 
 	cpdef load(self, key)
 	
-	cdef write_buffer(self, key)
+	cdef buffer_write(self, key)
 
-	cdef write_buffer_bigint(self, pyint)
+	cdef buffer_write_bigint(self, pyint)
 
-	cdef write_buffer_decimal(self, pydecimal)
+	cdef buffer_write_decimal(self, pydecimal)
 
 	@staticmethod # Called by lre_tokenize()
 	cdef int callback_load_int(lre_loader_t *loader, int64_t value) except? LRE_FAIL

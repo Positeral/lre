@@ -52,7 +52,7 @@ cdef class LRE:
 		lre_buffer_reset_fast(self.lrbuffer)
 
 		try:
-			self.write_buffer(key)
+			self.buffer_write(key)
 			return (<char *> self.lrbuffer.data)[:self.lrbuffer.size]
 		finally:
 			if lre_buffer_reset(self.lrbuffer, &error) != LRE_OK:
@@ -80,7 +80,7 @@ cdef class LRE:
 		finally:
 			self.tmpkey = []
 
-	cdef write_buffer(self, object key):
+	cdef buffer_write(self, object key):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
 	
 		cdef const uint8_t *str_value
@@ -103,7 +103,7 @@ cdef class LRE:
 				if not int_overflow:
 					lre_pack_int(self.lrbuffer, int_value, &error)
 				else:
-					self.write_buffer_bigint(i)
+					self.buffer_write_bigint(i)
 	
 			elif isinstance(i, bytes):
 				PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
@@ -113,7 +113,7 @@ cdef class LRE:
 				lre_pack_float(self.lrbuffer, i, &error)
 	
 			elif isinstance(i, list):
-				self.write_buffer(i)
+				self.buffer_write(i)
 	
 			else:
 				raise ValueError('type <%s> is unsupported' % type(i).__name__)
@@ -121,7 +121,7 @@ cdef class LRE:
 			if error:
 				raise ValueError(lre_strerror(error).decode('utf8'))
 
-	cdef write_buffer_bigint(self, object pyint):
+	cdef buffer_write_bigint(self, object pyint):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
 	
 		cdef uint8_t *dst
@@ -154,7 +154,7 @@ cdef class LRE:
 	
 		lre_buffer_set_size_distance(self.lrbuffer, dst)
 
-	cdef write_buffer_decimal(self, object pydecimal):
+	cdef buffer_write_decimal(self, object pydecimal):
 		pass
 
 	@staticmethod # Called by lre_tokenize()
