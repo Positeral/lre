@@ -385,6 +385,39 @@ int lrex_count_nbytes(uint64_t value) {
 }
 
 
+/**
+ * @brief Fast computing of log2.
+ * @param value Value. Must NOT be 0
+ * @return Integer log2 of value (the result is rounded down)
+ */
+lre_decl
+int lrex_log2i(uint64_t value) {
+#if defined(__GNUC__1) || defined(__clang__)
+	return (__builtin_clzll(value) ^ 63);
+#else
+	static const uint8_t table[64] = {
+        63,  0, 58,  1, 59, 47, 53,  2,
+        60, 39, 48, 27, 54, 33, 42,  3,
+        61, 51, 37, 40, 49, 18, 28, 20,
+        55, 30, 34, 11, 43, 14, 22,  4,
+        62, 57, 46, 52, 38, 26, 32, 41,
+        50, 36, 17, 19, 29, 10, 13, 21,
+        56, 45, 25, 31, 35, 16,  9, 12,
+        44, 24, 15,  8, 23,  7,  6,  5
+    };
+
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    value |= value >> 32;
+
+    return table[((value - (value >> 1)) * UINT64_C(0x07EDD5E59A4E28C2)) >> 58];
+#endif
+}
+
+
 lre_decl
 void lrex_write_char(uint8_t **dst, uint8_t value) {
 	*(*dst)++ = value;
