@@ -760,6 +760,50 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mo
 }
 
 
+lre_decl
+int lre_pack_int2(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
+	/* tag(1) + exponent(2) + intpart(16) + separator(1) */
+	if (lre_likely(lre_buffer_require(buf, (1+2+16+1), error) == LRE_OK)) {
+		uint8_t *dst = lre_buffer_end(buf);
+
+		if (value < 0) {
+			uint64_t uvalue = lrex_negate_negative(value);
+
+			int      e       = lrex_log2i(uvalue);
+			uint64_t i       = uvalue - (UINT64_C(1) << e);
+			int      inbytes = lrex_count_nbytes(i);
+
+			lrex_write_char   (&dst, LRE_TAG_NUMBER_NEGATIVE_2);
+			lrex_write_uint16 (&dst, ~(e + 16383));
+			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(inbytes));
+			lrex_write_uint64n(&dst, ~i, inbytes);
+			lrex_write_char   (&dst, LRE_SEP_NEGATIVE);
+		}
+		else if (lre_unlikely(!value)) {
+			lrex_write_char (&dst, LRE_TAG_NUMBER_POSITIVE_1);
+			lrex_write_uint8(&dst, 0);
+			lrex_write_char (&dst, LRE_SEP_POSITIVE);
+		}
+		else {
+			int      e       = lrex_log2i(value);
+			uint64_t i       = value - (UINT64_C(1) << e);
+			int      inbytes = lrex_count_nbytes(i);
+
+			lrex_write_char   (&dst, LRE_TAG_NUMBER_POSITIVE_2);
+			lrex_write_uint16 (&dst, e + 16383);
+			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(inbytes));
+			lrex_write_uint64n(&dst, i, inbytes);
+			lrex_write_char   (&dst, LRE_SEP_POSITIVE);
+		}
+
+		lre_buffer_set_size_distance(buf, dst);
+		return LRE_OK;
+	}
+
+	return LRE_FAIL;
+}
+
+
 /**
  * @brief Write 64-bit signed integer value into buffer
  *
