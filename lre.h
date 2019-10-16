@@ -555,7 +555,7 @@ const uint8_t *lrex_memsep(const uint8_t *src, size_t size) {
  * */
 typedef struct {
 	const uint8_t *src; /* Pointer to first character */
-	const uint8_t *end; /* Pointer to last character */
+	const uint8_t *end; /* Pointer to next to last character */
 } lre_slice_t;
 
 
