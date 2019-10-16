@@ -54,6 +54,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define LRE_OK   0
 #define LRE_FAIL 1
 
+#define LRE_EXPONENT_BIAS 16383
+
 
 #if !defined(lre_decl)
 	#if defined(__cplusplus) || defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
@@ -846,10 +848,6 @@ int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
 
 /**
  * @brief Write double value into buffer
- *
- * Integral part will be written in the hexadecimal representation identically to lre_pack_int,
- * fractional part will be continuously written in the decimal representation with 15 digits of precision.
- *
  * @param buf Pointer to lre_buffer_t
  * @param value Double value
  * @param error Pointer to lre_error_t or 0
@@ -860,59 +858,69 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 	if (lre_unlikely(lre_isnan(value))) {
 		return lre_fail(LRE_ERROR_NAN, error);
 	}
-	
-	/* tag(1) + integral(16) + fraction(15) + separator(1) */
-	if (lre_likely(lre_buffer_require(buf, (1+16+15+1), error) == LRE_OK)) {
+
+	/* tag(1) + integral(16) + exp(4) + fraction(14) + size(1) */
+	if (lre_likely(lre_buffer_require(buf, (1+4+14+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
-		
+		int negative = 0;
+
 		if (lre_unlikely(lre_isinf(value))) {
 			if (value < 0) {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_NEGATIVE_INF);
-				lrex_write_char(&dst, LRE_SEP_NEGATIVE);
 			}
 			else {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_POSITIVE_INF);
-				lrex_write_char(&dst, LRE_SEP_POSITIVE);
 			}
-			
+
 			lre_buffer_set_size_distance(buf, dst);
 			return LRE_OK;
 		}
-		
-		if (lre_unlikely(value > 281474976710655.0 || value < -281474976710655.0)) {
+
+		if (lre_unlikely(value > 9007199254740991.0 || value < -9007199254740991.0)) {
 			return lre_fail(LRE_ERROR_RANGE, error);
 		}
-		
-		if (value < 0) {
-			uint64_t integral = lrex_negate_negative(value);
-			uint64_t fraction = lrex_negate_negative((value + integral) * 1e15 - 0.5);
-			uint8_t  nbytes   = lrex_count_nbytes(integral);
 
-			/* Decimal inversion */
-			fraction = lrex_max10[15] - fraction;
-
-			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(nbytes));
-			lrex_write_uint64n(&dst, ~integral, nbytes);
-			lrex_write_decimal(&dst, fraction, 15);
-			lrex_write_rstrip (&dst, '9', 15);
-			lrex_write_char   (&dst, LRE_SEP_NEGATIVE);
+		if (value < 0.0) {
+			negative = 1;
+			value = -value;
 		}
-		else {
-			uint64_t integral = value;
-			uint64_t fraction = (value - integral) * 1e15 + 0.5;
-			uint8_t  nbytes   = lrex_count_nbytes(integral);
 
-			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(nbytes));
-			lrex_write_uint64n(&dst, integral, nbytes);
-			lrex_write_decimal(&dst, fraction, 15);
-			lrex_write_rstrip (&dst, '0', 15);
-			lrex_write_char   (&dst, LRE_SEP_POSITIVE);
+		{
+			uint64_t integral        = value;
+			uint8_t  integral_nbytes = lrex_count_nbytes(integral);
+
+			int      exponent;
+			uint64_t mantissa        = ldexp(frexp(value - integral, &exponent), 53);
+			uint8_t  mantissa_nbytes = 7;
+
+			if (negative) {
+				lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(integral_nbytes));
+				lrex_write_uint64n(&dst, ~integral, integral_nbytes);
+
+				if (lre_likely(mantissa)) {
+					lrex_write_uint16 (&dst, ~(exponent + LRE_EXPONENT_BIAS));
+					lrex_write_uint64n(&dst, ~mantissa, mantissa_nbytes);
+				}
+
+				lrex_write_char(&dst, LRE_SEP_NEGATIVE);
+			}
+			else {
+				lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(integral_nbytes));
+				lrex_write_uint64n(&dst, integral, integral_nbytes);
+
+				if (lre_likely(mantissa)) {
+					lrex_write_uint16 (&dst, exponent + LRE_EXPONENT_BIAS);
+					lrex_write_uint64n(&dst, mantissa, mantissa_nbytes);
+				}
+
+				lrex_write_char(&dst, LRE_SEP_POSITIVE);
+			}
 		}
-		
+
 		lre_buffer_set_size_distance(buf, dst);
 		return LRE_OK;
 	}
-	
+
 	return LRE_FAIL;
 }
 
