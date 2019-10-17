@@ -138,46 +138,6 @@ static const uint8_t lrex_hexrev[256] = {
 };
 
 
-/* For decimal inversion */
-static const int64_t lrex_max10[16] = {
-	INT64_C(0),
-	INT64_C(9),
-	INT64_C(99),
-	INT64_C(999),
-	INT64_C(9999),
-	INT64_C(99999),
-	INT64_C(999999),
-	INT64_C(9999999),
-	INT64_C(99999999),
-	INT64_C(999999999),
-	INT64_C(9999999999),
-	INT64_C(99999999999),
-	INT64_C(999999999999),
-	INT64_C(9999999999999),
-	INT64_C(99999999999999),
-	INT64_C(999999999999999)
-};
-
-/* Precalculate powers of 10 */
-static const double lrex_pow10[16] = {
-	1.0,
-	10.0,
-	100.0,
-	1000.0,
-	10000.0,
-	100000.0,
-	1000000.0,
-	10000000.0,
-	100000000.0,
-	1000000000.0,
-	10000000000.0,
-	100000000000.0,
-	1000000000000.0,
-	10000000000000.0,
-	100000000000000.0,
-	1000000000000000.0
-};
-
 typedef enum {
 	LRE_SEP_NEGATIVE = '~',
 	LRE_SEP_POSITIVE = '+'
@@ -450,38 +410,11 @@ void lrex_write_uint64n(uint8_t **dst, uint64_t value, size_t nbytes) {
 
 
 lre_decl
-void lrex_write_decimal(uint8_t **dst, uint64_t value, size_t ndigits) {
-	uint8_t *ptr = (*dst += ndigits);
-
-	while (ndigits--) {
-		*--ptr = '0' + (value % 10);
-		value /= 10;
-	}
-}
-
-
-lre_decl
 void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask) {
 	while (len--) {
 		int byte = *src++ ^ mask;
 		lrex_write_uint8(dst, byte);
 	}
-}
-
-
-/**
- * @brief Shifts pointer back to first (left-to-right) trailing character.
- * @param ptr Pointer to pointer to the past-the-end character
- * @param c Trailing character
- * @param n Length
- */
-lre_decl
-void lrex_write_rstrip(uint8_t **ptr, uint8_t c, size_t n) {
-	do {
-		(*ptr)--;
-	} while (**ptr == c && n--);
-
-	(*ptr)++;
 }
 
 
@@ -515,19 +448,6 @@ uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes, uint8_t mask) {
 		value = (value << 8) | lrex_read_uint8(src, mask);
 	}
 	
-	return value;
-}
-
-
-lre_decl
-uint64_t lrex_read_decimal(const uint8_t **src, size_t ndigits) {
-	uint64_t value = 0;
-
-	while (ndigits--) {
-		value *= 10;
-		value += lrex_read_char(src) - '0';
-	}
-
 	return value;
 }
 
@@ -758,50 +678,6 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mo
 		return LRE_OK;
 	}
 	
-	return LRE_FAIL;
-}
-
-
-lre_decl
-int lre_pack_int2(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
-	/* tag(1) + exponent(2) + intpart(16) + separator(1) */
-	if (lre_likely(lre_buffer_require(buf, (1+2+16+1), error) == LRE_OK)) {
-		uint8_t *dst = lre_buffer_end(buf);
-
-		if (value < 0) {
-			uint64_t uvalue = lrex_negate_negative(value);
-
-			int      e       = lrex_log2i(uvalue);
-			uint64_t i       = uvalue - (UINT64_C(1) << e);
-			int      inbytes = lrex_count_nbytes(i);
-
-			lrex_write_char   (&dst, LRE_TAG_NUMBER_NEGATIVE_2);
-			lrex_write_uint16 (&dst, ~(e + 16383));
-			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(inbytes));
-			lrex_write_uint64n(&dst, ~i, inbytes);
-			lrex_write_char   (&dst, LRE_SEP_NEGATIVE);
-		}
-		else if (lre_unlikely(!value)) {
-			lrex_write_char (&dst, LRE_TAG_NUMBER_POSITIVE_1);
-			lrex_write_uint8(&dst, 0);
-			lrex_write_char (&dst, LRE_SEP_POSITIVE);
-		}
-		else {
-			int      e       = lrex_log2i(value);
-			uint64_t i       = value - (UINT64_C(1) << e);
-			int      inbytes = lrex_count_nbytes(i);
-
-			lrex_write_char   (&dst, LRE_TAG_NUMBER_POSITIVE_2);
-			lrex_write_uint16 (&dst, e + 16383);
-			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(inbytes));
-			lrex_write_uint64n(&dst, i, inbytes);
-			lrex_write_char   (&dst, LRE_SEP_POSITIVE);
-		}
-
-		lre_buffer_set_size_distance(buf, dst);
-		return LRE_OK;
-	}
-
 	return LRE_FAIL;
 }
 
