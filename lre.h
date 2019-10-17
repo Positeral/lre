@@ -959,7 +959,7 @@ int lrex_load_number_float(lre_loader_t *loader, const lre_metanumber_t *num, lr
 		goto handle_bigfloat;
 	}
 
-	if (lre_unlikely(num->fraction_exponent > 1023 || num->fraction_exponent < -1022)) {
+	if (lre_unlikely(num->fraction_exponent > 0 || num->fraction_exponent < -1073)) {
 		goto handle_bigfloat;
 	}
 
