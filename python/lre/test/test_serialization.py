@@ -91,80 +91,6 @@ class TestOrder(unittest.TestCase):
         self.assertEqual(l1, l2, 'invalid order')
 
 
-class TestFormatEmptyValues(unittest.TestCase):
-    def testEmpty(self):
-        self.assertEqual(lre.dumps([]), b'',
-                         'unexpected empty serialization')
-
-        self.assertEqual(lre.dumps([[]]), b'',
-                         'unexpected empty serialization')
-
-        self.assertEqual(lre.dumps([[], [], [[[], []]]]), b'',
-                         'unexpected empty serialization')
-
-    def testEmptyString(self):
-        v = u''
-        self.assertEqual(lre.dumps(v), b'XL+',
-                         'unexpected serialization of %r' % v)
-
-        v = b''
-        self.assertEqual(lre.dumps(v), b'XH+',
-                         'unexpected serialization of %r' % v)
-
-        v = [u'']
-        self.assertEqual(lre.dumps(v), b'XL+',
-                         'unexpected serialization of %r' % v)
-
-        v = [b'']
-        self.assertEqual(lre.dumps(v), b'XH+',
-                         'unexpected serialization of %r' % v)
-
-        v = [[], u'']
-        self.assertEqual(lre.dumps(v), b'XL+',
-                         'unexpected serialization of %r' % v)
-
-        v = [[], b'']
-        self.assertEqual(lre.dumps(v), b'XH+',
-                         'unexpected serialization of %r' % v)
-
-    def testEmptyInteger(self):
-        v = 0
-        self.assertEqual(lre.dumps(v), b'M00+',
-                         'unexpected serialization of %r' % v)
-
-        v = 0.0
-        self.assertEqual(lre.dumps(v), b'M00+',
-                         'unexpected serialization of %r' % v)
-
-        v = -0.0
-        self.assertEqual(lre.dumps(v), b'M00+',
-                         'unexpected serialization of %r' % v)
-
-
-class TestFormatString(unittest.TestCase):
-    def testUnicode(self):
-        v = u'abcdef'
-        self.assertEqual(lre.dumps(v), b'X616263646566L+',
-                         'unexpected serialization of %r' % v)
-
-        v = u'china\u6123!'
-        self.assertEqual(lre.dumps(v), b'X6368696e61e684a321L+',
-                         'unexpected serialization of %r' % v)
-
-        v = [u'china\u6123!', u'china\u6123!']
-        self.assertEqual(lre.dumps(v), b'X6368696e61e684a321L+X6368696e61e684a321L+',
-                         'unexpected serialization of %r' % v)
-
-    def testBytes(self):
-        v = b'\x01\x02'
-        self.assertEqual(lre.dumps(v), b'X0102H+',
-                         'unexpected serialization of %r' % v)        
-
-        v = b'\x01\x02'
-        self.assertEqual(lre.dumps([v,v]), b'X0102H+X0102H+',
-                         'unexpected serialization of %r' % v)
-
-
 class TestLimits(unittest.TestCase):
     def testNan(self):
         with self.assertRaises(ValueError):
@@ -175,33 +101,4 @@ class TestLimits(unittest.TestCase):
             lre.dumps(2**524280)
 
 
-class TestBignum(unittest.TestCase):
-    def testBigBegin(self):
-        v = 0xffffffffffffffff
-        self.assertEqual(lre.dumps(v), b'U0008ffffffffffffffff+',
-                         'unexpected serialization of %r' % v)
-
-        v = -0xffffffffffffffff
-        self.assertEqual(lre.dumps(v), b'Dfff70000000000000000~',
-                         'unexpected serialization of %r' % v)
-
-        v = 9223372036854775808
-        self.assertEqual(lre.dumps(v), b'U00088000000000000000+',
-                         'unexpected serialization of %r' % v)
-
-        v = -9223372036854775809
-        self.assertEqual(lre.dumps(v), b'Dfff77ffffffffffffffe~',
-                         'unexpected serialization of %r' % v)
-
-    def testVariative(self):
-        v = [2**70, 1, []]
-        self.assertEqual(lre.dumps(v), b'U0009400000000000000000+M01+',
-                         'unexpected serialization of %r' % v)
-
-        v = [2**70, [1], [[5**50]]]
-        r = b'U0009400000000000000000+M01+U000f111b0ec57e6499a1f4b1014d3f6d59+'
-        self.assertEqual(lre.dumps(v), r,
-                         'unexpected serialization of %r' % v)
-
-        
 
