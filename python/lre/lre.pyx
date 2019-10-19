@@ -46,9 +46,8 @@ cdef class LRE:
 		self.lrloader.handler_str    = &self.callback_load_str
 		self.lrloader.handler_bigint = &self.callback_load_bigint
 
-	cpdef pack(self, object key):
+	cpdef pack(self, key):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
-
 		lre_buffer_reset_fast(self.lrbuffer)
 
 		try:
@@ -58,7 +57,7 @@ cdef class LRE:
 			if lre_buffer_reset(self.lrbuffer, &error) != LRE_OK:
 				raise MemoryError(lre_strerror(error).decode('utf8'))
 
-	cpdef load(self, object key):
+	cpdef load(self, key):
 		cdef lre_error_t error = LRE_ERROR_NOTHING
 		cdef const char *src
 
@@ -80,12 +79,11 @@ cdef class LRE:
 		finally:
 			self.tmpkey = []
 
-	cdef buffer_write(self, object key):
-		cdef lre_error_t error = LRE_ERROR_NOTHING
-	
+	cdef buffer_write(self, key):
+		cdef lre_error_t    error = LRE_ERROR_NOTHING
 		cdef const uint8_t *str_value
 		cdef Py_ssize_t     str_size
-	
+
 		if not isinstance(key, list):
 			key = [key]
 	
@@ -113,12 +111,11 @@ cdef class LRE:
 			if error:
 				raise ValueError(lre_strerror(error).decode('utf8'))
 
-	cdef buffer_write_int(self, object pyint):
-		cdef lre_error_t error = LRE_ERROR_NOTHING
+	cdef buffer_write_int(self, pyint):
+		cdef lre_error_t error        = LRE_ERROR_NOTHING
+		cdef int         int_overflow = 0
+		cdef int64_t     int_value    = PyLong_AsLongLongAndOverflow(pyint, &int_overflow)
 
-		cdef int     int_overflow = 0
-		cdef int64_t int_value = PyLong_AsLongLongAndOverflow(pyint, &int_overflow)
-	
 		if not int_overflow:
 			if lre_pack_int(self.lrbuffer, int_value, &error) != LRE_OK:
 				raise ValueError(lre_strerror(error).decode('utf8'))
@@ -127,27 +124,27 @@ cdef class LRE:
 
 		cdef uint8_t *dst
 		cdef size_t   nbytes = (_PyLong_NumBits(pyint) + 7) >> 3
-	
+
 		if nbytes > 65535:
 			raise OverflowError('big int out of range')
 	
 		# tag(1) + nbytes(4) + value(nbytes*2) + separator(1)
 		if lre_buffer_require(self.lrbuffer, (1+4+(nbytes*2)+1), &error) != LRE_OK:
 			raise MemoryError(lre_strerror(error).decode('utf8'))
-	
+
 		dst = lre_buffer_end(self.lrbuffer)
-	
+
 		if pyint < 0:
 			pyint = -pyint
 			_PyLong_AsByteArray(<PyLongObject *> pyint, <unsigned char *> TMP65535, nbytes, 0, 0)
-	
+
 			lrex_write_char  (&dst, LRE_TAG_NUMBER_NEGATIVE_BIG)
 			lrex_write_uint16(&dst, ~nbytes)
 			lrex_write_str   (&dst, TMP65535, nbytes, 0xff)
 			lrex_write_char  (&dst, LRE_SEP_NEGATIVE)
 		else:
 			_PyLong_AsByteArray(<PyLongObject *> pyint, <unsigned char *> TMP65535, nbytes, 0, 0)
-	
+
 			lrex_write_char  (&dst, LRE_TAG_NUMBER_POSITIVE_BIG)
 			lrex_write_uint16(&dst, nbytes)
 			lrex_write_str   (&dst, TMP65535, nbytes, 0)
@@ -155,29 +152,25 @@ cdef class LRE:
 	
 		lre_buffer_set_size_distance(self.lrbuffer, dst)
 
-	cdef buffer_write_decimal(self, object pydecimal):
-		pass
-
-	@staticmethod # Called by lre_tokenize()
+	@staticmethod # Call by lre_tokenize()
 	cdef int callback_load_int(lre_loader_t *loader, int64_t value) except? LRE_FAIL:
 		cdef LRE self = <LRE> loader.app_private
 
 		self.tmpkey.append(value)
 		return LRE_OK
 
-	@staticmethod # Called by lre_tokenize()
+	@staticmethod # Call by lre_tokenize()
 	cdef int callback_load_float(lre_loader_t *loader, double value) except? LRE_FAIL:
 		cdef LRE self = <LRE> loader.app_private
 
 		self.tmpkey.append(value)
 		return LRE_OK
 
-	@staticmethod # Called by lre_tokenize()
+	@staticmethod # Call by lre_tokenize()
 	cdef int callback_load_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL:
-		cdef LRE self = <LRE> loader.app_private
-
+		cdef LRE       self   = <LRE> loader.app_private
 		cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
-		cdef bytes s = PyBytes_FromStringAndSize(NULL, nbytes)
+		cdef bytes     s      = PyBytes_FromStringAndSize(NULL, nbytes)
 
 		lrex_read_str(&slice.src, <uint8_t *> (<char *> s), nbytes, 0)
 
@@ -188,23 +181,22 @@ cdef class LRE:
 
 		return LRE_OK
 
-	@staticmethod # Called by lre_tokenize()
-	cdef int callback_load_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL:
-		cdef LRE self = <LRE> loader.app_private
-		
-		cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
-		cdef object    value
+	@staticmethod # Call by lre_tokenize()
+	cdef int callback_load_bigint(lre_loader_t *loader, const lre_metanumber_t *num) except? LRE_FAIL:
+		cdef LRE            self = <LRE> loader.app_private
+		cdef const uint8_t *src  = num.integral_data
+		cdef object         value
 
-		if nbytes > 0xffff:
+		if num.integral_nbytes > 65535:
 			raise OverflowError('big int out of range')
 
-		if info.mask:
-			lrex_read_str(&slice.src, TMP65535, nbytes, 0xff)
-			value = _PyLong_FromByteArray(<unsigned char *> TMP65535, nbytes, 0, 0)
+		if num.negative_mask:
+			lrex_read_str(&src, TMP65535, num.integral_nbytes, 0xff)
+			value = _PyLong_FromByteArray(<unsigned char *> TMP65535, num.integral_nbytes, 0, 0)
 			value = -value
 		else:
-			lrex_read_str(&slice.src, TMP65535, nbytes, 0x00)
-			value = _PyLong_FromByteArray(<unsigned char *> TMP65535, nbytes, 0, 0)
+			lrex_read_str(&src, TMP65535, num.integral_nbytes, 0x00)
+			value = _PyLong_FromByteArray(<unsigned char *> TMP65535, num.integral_nbytes, 0, 0)
 
 		self.tmpkey.append(value)
 
