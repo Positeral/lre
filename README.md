@@ -14,14 +14,14 @@ Features:
 Data types:
 * Strings (can be marked as raw or UTF8)
 * Signed 64-bit integers
-* Double with 15 decimal digits of fixed precision
+* Double float-point
 * +INF and -INF are supported
 * Big numbers are supported by external assistance
 
 Limits:
 * NaN not supported due to ambiguity
 * No difference between 0, -0.0 and +0.0, between 1 and 1.0
-* Built-in float-point range is -281474976710655.0, 281474976710655.0
+* Built-in float-point range is -9007199254740991.0, 9007199254740991.0
 * Built-in integer range is -9223372036854775808, 9223372036854775807
 
 #### Serialization
@@ -57,8 +57,8 @@ int main() {
 
 Output:
 ```
-lre: X616263H+Nffaa+M0a9+
-len: 34
+lre: X616263H+Nffaa+M0a3fff1cccccccccccd0+
+len: 37
 ```
 
 #### Deserialization
@@ -85,7 +85,7 @@ int handler_float(lre_loader_t *loader, double value) {
 }
 
 int main() {
-    char  *str = "X616263H+Nffaa+M0a9+";
+    char  *str = "X616263H+Nffaa+M0a3fff1cccccccccccd0+";
     size_t len = strlen(str);
 
     lre_error_t error = 0;
