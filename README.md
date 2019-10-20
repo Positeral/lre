@@ -1,9 +1,9 @@
 # LRE
 
-LRE (Lexicographic REpresentation) - is a rapid serializer of numbers and strings for composite keys. It converts a set of values to special ASCII-string providing a natural order for serialized numbers in lexicographically comparing, so deserialization for every key comparing is not required. This is very helpful for key-value databases like LMDB or Berkeley DB which stores arbitrary keys as byte arrays in lexicographical order by default.
+LRE (Lexicographic REpresentation) - is a rapid serializer of numbers and strings for composite keys. It converts a set of values to special ASCII-string providing a natural order for serialized numbers in lexicographical comparing, so deserialization for every key comparing is not required. This is very helpful for key-value databases like LMDB or Berkeley DB which stores arbitrary keys as byte arrays in lexicographical order by default.
 
 Features:
-* Lexicographic natural order
+* Lexicographic natural order for numbers
 * Screamingly fast
 * ASCII-safe
 * Header-only library
@@ -19,7 +19,7 @@ Data types:
 * Big numbers are supported by external assistance
 
 Limits:
-* NaN not supported due to ambiguity
+* NaN purposely not supported due to ambiguity
 * No difference between 0, -0.0 and +0.0, between 1 and 1.0
 * Built-in float-point range is -9007199254740991.0, 9007199254740991.0
 * Built-in integer range is -9223372036854775808, 9223372036854775807
