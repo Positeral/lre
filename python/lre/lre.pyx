@@ -91,16 +91,16 @@ cdef class LRE:
 			if isinstance(i, unicode):
 				str_value = <const uint8_t *> PyUnicode_AsUTF8AndSize(i, &str_size)
 				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_MOD_STRING_UTF8, &error)
-	
+
+			elif isinstance(i, float):
+				lre_pack_float(self.lrbuffer, i, &error)
+
 			elif isinstance(i, int):
 				self.buffer_write_int(i)
 	
 			elif isinstance(i, bytes):
 				PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
 				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_MOD_STRING_RAW, &error)
-	
-			elif isinstance(i, float):
-				lre_pack_float(self.lrbuffer, i, &error)
 	
 			elif isinstance(i, list):
 				self.buffer_write(i)
