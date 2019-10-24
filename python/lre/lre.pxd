@@ -8,10 +8,12 @@ DEF LRE_FAIL = 1
 cdef extern from 'lre.h':
 	ctypedef int int8_t
 	ctypedef int int16_t
+	ctypedef int int32_t
 	ctypedef int int64_t
 	
 	ctypedef int uint8_t
 	ctypedef int uint16_t
+	ctypedef int uint32_t
 	ctypedef int uint64_t
 
 	ctypedef enum lre_error_t:
@@ -88,11 +90,14 @@ cdef extern from 'lre.h':
 
 	ptrdiff_t lre_slice_len(const lre_slice_t *slice)
 
-	ctypedef struct lre_number_info_t:
-		lre_tag_t tag
-		uint8_t   mask
-		ptrdiff_t nbytes_integral  # Number of encoded bytes
-		ptrdiff_t ndigits_fraction # Number of digits after integer part
+	ctypedef struct lre_metanumber_t:
+		lre_tag_t      tag
+		uint8_t        negative_mask
+		const uint8_t *integral_data
+		uint16_t       integral_nbytes
+		const uint8_t *fraction_data
+		uint16_t       fraction_nbytes
+		int32_t        fraction_exponent
 
 	ctypedef struct lre_loader_t:
 		void *app_private;
@@ -100,10 +105,8 @@ cdef extern from 'lre.h':
 		int (*handler_float)   (lre_loader_t *loader, double value)  except? LRE_FAIL
 		int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL
 		int (*handler_inf)     (lre_loader_t *loader, lre_tag_t tag) except? LRE_FAIL
-		int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
-		int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
-
-		ptrdiff_t builtin_nfraction
+		int (*handler_bigint)  (lre_loader_t *loader, const lre_metanumber_t *num) except? LRE_FAIL
+		int (*handler_bigfloat)(lre_loader_t *loader, const lre_metanumber_t *num) except? LRE_FAIL
 
 	void lre_loader_init(lre_loader_t *loader, void *app_private)
 	int  lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) except? LRE_FAIL
@@ -121,23 +124,21 @@ cdef class LRE:
 
 	cpdef load(self, key)
 	
-	cdef write_buffer(self, key)
+	cdef buffer_write(self, key)
 
-	cdef write_buffer_bigint(self, pyint)
+	cdef buffer_write_int(self, pyint)
 
-	cdef write_buffer_decimal(self, pydecimal)
-
-	@staticmethod # Called by lre_tokenize()
+	@staticmethod # Call by lre_tokenize()
 	cdef int callback_load_int(lre_loader_t *loader, int64_t value) except? LRE_FAIL
 
-	@staticmethod # Called by lre_tokenize()
+	@staticmethod # Call by lre_tokenize()
 	cdef int callback_load_float(lre_loader_t *loader, double value) except? LRE_FAIL
 
-	@staticmethod # Called by lre_tokenize()
+	@staticmethod # Call by lre_tokenize()
 	cdef int callback_load_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL
 
-	@staticmethod # Called by lre_tokenize()
-	cdef int callback_load_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) except? LRE_FAIL
+	@staticmethod # Call by lre_tokenize()
+	cdef int callback_load_bigint(lre_loader_t *loader, const lre_metanumber_t *num) except? LRE_FAIL
 
 
 

@@ -54,6 +54,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define LRE_OK   0
 #define LRE_FAIL 1
 
+#define LRE_EXPONENT_BIAS INT32_C(16383)
+
 
 #if !defined(lre_decl)
 	#if defined(__cplusplus) || defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
@@ -135,46 +137,6 @@ static const uint8_t lrex_hexrev[256] = {
 	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
-
-/* For decimal inversion */
-static const int64_t lrex_max10[16] = {
-	INT64_C(0),
-	INT64_C(9),
-	INT64_C(99),
-	INT64_C(999),
-	INT64_C(9999),
-	INT64_C(99999),
-	INT64_C(999999),
-	INT64_C(9999999),
-	INT64_C(99999999),
-	INT64_C(999999999),
-	INT64_C(9999999999),
-	INT64_C(99999999999),
-	INT64_C(999999999999),
-	INT64_C(9999999999999),
-	INT64_C(99999999999999),
-	INT64_C(999999999999999)
-};
-
-/* Precalculate powers of 10 */
-static const double lrex_pow10[16] = {
-	1.0,
-	10.0,
-	100.0,
-	1000.0,
-	10000.0,
-	100000.0,
-	1000000.0,
-	10000000.0,
-	100000000.0,
-	1000000000.0,
-	10000000000.0,
-	100000000000.0,
-	1000000000000.0,
-	10000000000000.0,
-	100000000000000.0,
-	1000000000000000.0
-};
 
 typedef enum {
 	LRE_SEP_NEGATIVE = '~',
@@ -304,7 +266,7 @@ lre_tag_t lrex_tag_by_nbytes_negative(int nbytes) {
 
 /**
  * @brief Returns number of bytes according to positive numeric tag
- * @param 
+ * @param numeric_tag Strictly numeric tag
  */
 lre_decl
 int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
@@ -314,7 +276,7 @@ int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
 
 /**
  * @brief Returns number of bytes according to negative numeric tag
- * @param 
+ * @param numeric_tag Strictly numeric tag
  */
 lre_decl
 int lrex_nbytes_by_tag_negative(lre_tag_t numeric_tag) {
@@ -367,7 +329,11 @@ int lrex_tag_is_positive(lre_tag_t tag) {
 }
 
 
-/* @brief Counting of significant bytes, always between 1, 8. */
+/**
+ * @brief Counting of significant bytes, always from 1 to 8.
+ * @param value Unsigned value
+ * @return Number of significant bytes
+ */
 lre_decl
 int lrex_count_nbytes(uint64_t value) {
 #if defined(__GNUC__) || defined(__clang__)
@@ -381,6 +347,39 @@ int lrex_count_nbytes(uint64_t value) {
 	(value > UINT64_C(0xffffffffff)) + \
 	(value > UINT64_C(0xffffffffffff)) + \
 	(value > UINT64_C(0xffffffffffffff)) + 1;
+#endif
+}
+
+
+/**
+ * @brief Fast computing of log2.
+ * @param value Value. Must NOT be 0
+ * @return Integer log2 of value (the result is rounded down)
+ */
+lre_decl
+int lrex_log2i(uint64_t value) {
+#if defined(__GNUC__) || defined(__clang__)
+	return (__builtin_clzll(value) ^ 63);
+#else
+	static const uint8_t table[64] = {
+        63,  0, 58,  1, 59, 47, 53,  2,
+        60, 39, 48, 27, 54, 33, 42,  3,
+        61, 51, 37, 40, 49, 18, 28, 20,
+        55, 30, 34, 11, 43, 14, 22,  4,
+        62, 57, 46, 52, 38, 26, 32, 41,
+        50, 36, 17, 19, 29, 10, 13, 21,
+        56, 45, 25, 31, 35, 16,  9, 12,
+        44, 24, 15,  8, 23,  7,  6,  5
+    };
+
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    value |= value >> 32;
+
+    return table[((value - (value >> 1)) * UINT64_C(0x07EDD5E59A4E28C2)) >> 58];
 #endif
 }
 
@@ -415,38 +414,11 @@ void lrex_write_uint64n(uint8_t **dst, uint64_t value, size_t nbytes) {
 
 
 lre_decl
-void lrex_write_decimal(uint8_t **dst, uint64_t value, size_t ndigits) {
-	uint8_t *ptr = (*dst += ndigits);
-
-	while (ndigits--) {
-		*--ptr = '0' + (value % 10);
-		value /= 10;
-	}
-}
-
-
-lre_decl
 void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask) {
 	while (len--) {
 		int byte = *src++ ^ mask;
 		lrex_write_uint8(dst, byte);
 	}
-}
-
-
-/**
- * @brief Shifts pointer back to first (left-to-right) trailing character.
- * @param ptr Pointer to pointer to the past-the-end character
- * @param c Trailing character
- * @param n Length
- */
-lre_decl
-void lrex_write_rstrip(uint8_t **ptr, uint8_t c, size_t n) {
-	do {
-		(*ptr)--;
-	} while (**ptr == c && n--);
-
-	(*ptr)++;
 }
 
 
@@ -485,19 +457,6 @@ uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes, uint8_t mask) {
 
 
 lre_decl
-uint64_t lrex_read_decimal(const uint8_t **src, size_t ndigits) {
-	uint64_t value = 0;
-
-	while (ndigits--) {
-		value *= 10;
-		value += lrex_read_char(src) - '0';
-	}
-
-	return value;
-}
-
-
-lre_decl
 void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mask) {
 	while (nbytes--) {
 		*dst++ = lrex_read_uint8(src, mask);
@@ -520,7 +479,7 @@ const uint8_t *lrex_memsep(const uint8_t *src, size_t size) {
  * */
 typedef struct {
 	const uint8_t *src; /* Pointer to first character */
-	const uint8_t *end; /* Pointer to last character */
+	const uint8_t *end; /* Pointer to next to last character */
 } lre_slice_t;
 
 
@@ -556,19 +515,19 @@ typedef struct {
 
 /**
  * @brief Create buffer instance with reserved memory. The buffer memory is always terminated with an extra null character.
- * @param reserve Reserved space
+ * @param reserve Reserved space. Always incremented by 1
  * @param error Pointer to lre_error_t or 0
  * @return Pointer to lre_buffer_t instance if success, 0 otherwise
  */
 lre_decl
 lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 	lre_buffer_t *buf = lre_std_calloc(1, sizeof(lre_buffer_t));
-	
+
 	if (lre_unlikely(!buf)) {
 		lre_fail(LRE_ERROR_ALLOCATION, error);
 		return 0;
 	}
-	
+
 	reserve++;
 	buf->data = lre_std_malloc(reserve);
 		
@@ -694,9 +653,6 @@ void lre_buffer_close(lre_buffer_t *buf) {
 
 /**
  * @brief Write string into buffer
- *
- * String will be written in the hexadecimal representation with one character of modifier.
- *
  * @param buf Pointer to lre_buffer_t
  * @param src Pointer to string
  * @param len Length of string
@@ -729,9 +685,6 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mo
 
 /**
  * @brief Write 64-bit signed integer value into buffer
- *
- * Value will be written in the hexadecimal representation byte by byte, so it length is always multiple of two.
- *
  * @param buf Pointer to lre_buffer_t
  * @param value Integer value
  * @param error Pointer to lre_error_t or 0
@@ -769,10 +722,6 @@ int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
 
 /**
  * @brief Write double value into buffer
- *
- * Integral part will be written in the hexadecimal representation identically to lre_pack_int,
- * fractional part will be continuously written in the decimal representation with 15 digits of precision.
- *
  * @param buf Pointer to lre_buffer_t
  * @param value Double value
  * @param error Pointer to lre_error_t or 0
@@ -783,59 +732,69 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 	if (lre_unlikely(lre_isnan(value))) {
 		return lre_fail(LRE_ERROR_NAN, error);
 	}
-	
-	/* tag(1) + integral(16) + fraction(15) + separator(1) */
-	if (lre_likely(lre_buffer_require(buf, (1+16+15+1), error) == LRE_OK)) {
+
+	/* tag(1) + integral(16) + exp(4) + fraction(14) + size(1) */
+	if (lre_likely(lre_buffer_require(buf, (1+4+14+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
-		
+		int negative = 0;
+
 		if (lre_unlikely(lre_isinf(value))) {
 			if (value < 0) {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_NEGATIVE_INF);
-				lrex_write_char(&dst, LRE_SEP_NEGATIVE);
 			}
 			else {
 				lrex_write_char(&dst, LRE_TAG_NUMBER_POSITIVE_INF);
-				lrex_write_char(&dst, LRE_SEP_POSITIVE);
 			}
-			
+
 			lre_buffer_set_size_distance(buf, dst);
 			return LRE_OK;
 		}
-		
-		if (lre_unlikely(value > 281474976710655.0 || value < -281474976710655.0)) {
+
+		if (lre_unlikely(value > 9007199254740991.0 || value < -9007199254740991.0)) {
 			return lre_fail(LRE_ERROR_RANGE, error);
 		}
-		
-		if (value < 0) {
-			uint64_t integral = lrex_negate_negative(value);
-			uint64_t fraction = lrex_negate_negative((value + integral) * 1e15 - 0.5);
-			uint8_t  nbytes   = lrex_count_nbytes(integral);
 
-			/* Decimal inversion */
-			fraction = lrex_max10[15] - fraction;
-
-			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(nbytes));
-			lrex_write_uint64n(&dst, ~integral, nbytes);
-			lrex_write_decimal(&dst, fraction, 15);
-			lrex_write_rstrip (&dst, '9', 15);
-			lrex_write_char   (&dst, LRE_SEP_NEGATIVE);
+		if (value < 0.0) {
+			negative = 1;
+			value = -value;
 		}
-		else {
-			uint64_t integral = value;
-			uint64_t fraction = (value - integral) * 1e15 + 0.5;
-			uint8_t  nbytes   = lrex_count_nbytes(integral);
 
-			lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(nbytes));
-			lrex_write_uint64n(&dst, integral, nbytes);
-			lrex_write_decimal(&dst, fraction, 15);
-			lrex_write_rstrip (&dst, '0', 15);
-			lrex_write_char   (&dst, LRE_SEP_POSITIVE);
+		{
+			uint64_t integral        = value;
+			uint8_t  integral_nbytes = lrex_count_nbytes(integral);
+
+			int      exponent;
+			uint64_t mantissa        = ldexp(frexp(value - integral, &exponent), 53);
+			uint8_t  mantissa_nbytes = 7;
+
+			if (negative) {
+				lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_negative(integral_nbytes));
+				lrex_write_uint64n(&dst, ~integral, integral_nbytes);
+
+				if (lre_likely(mantissa)) {
+					lrex_write_uint16 (&dst, ~(exponent + LRE_EXPONENT_BIAS));
+					lrex_write_uint64n(&dst, ~mantissa, mantissa_nbytes);
+				}
+
+				lrex_write_char(&dst, LRE_SEP_NEGATIVE);
+			}
+			else {
+				lrex_write_char   (&dst, (int) lrex_tag_by_nbytes_positive(integral_nbytes));
+				lrex_write_uint64n(&dst, integral, integral_nbytes);
+
+				if (lre_likely(mantissa)) {
+					lrex_write_uint16 (&dst, exponent + LRE_EXPONENT_BIAS);
+					lrex_write_uint64n(&dst, mantissa, mantissa_nbytes);
+				}
+
+				lrex_write_char(&dst, LRE_SEP_POSITIVE);
+			}
 		}
-		
+
 		lre_buffer_set_size_distance(buf, dst);
 		return LRE_OK;
 	}
-	
+
 	return LRE_FAIL;
 }
 
@@ -843,11 +802,16 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 /*
  * */
 typedef struct {
-	lre_tag_t tag;              /* Numeric tag */
-	uint8_t   mask;             /* 0xFF for negative numbers, 0 otherwise */
-	ptrdiff_t nbytes_integral;  /* Number of encoded bytes */
-	ptrdiff_t ndigits_fraction; /* Number of digits after integer part */
-} lre_number_info_t;
+	lre_tag_t      tag;               /* Numeric tag */
+	uint8_t        negative_mask;     /* 0xff for negative numbers, 0 otherwise */
+
+	const uint8_t *integral_data;     /* Pointer to integral */
+	uint16_t       integral_nbytes;   /* Number of bytes of integral part */
+
+	const uint8_t *fraction_data;     /* Pointer to fraction part (mantissa) */
+	uint16_t       fraction_nbytes;   /* Number of bytes of fraction part */
+	int32_t        fraction_exponent; /* Unbiased exponent of fraction part */
+} lre_metanumber_t;
 
 
 typedef struct lre_loader_t lre_loader_t;
@@ -860,10 +824,8 @@ typedef struct lre_loader_t {
 	int (*handler_float)   (lre_loader_t *loader, double value);
 	int (*handler_inf)     (lre_loader_t *loader, lre_tag_t tag);
 	int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod);
-	int (*handler_bigint)  (lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
-	int (*handler_bigfloat)(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info);
-
-	ptrdiff_t builtin_nfraction;
+	int (*handler_bigint)  (lre_loader_t *loader, const lre_metanumber_t *num);
+	int (*handler_bigfloat)(lre_loader_t *loader, const lre_metanumber_t *num);
 } lre_loader_t;
 
 
@@ -898,13 +860,13 @@ int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 
 
 lre_decl
-int lre_loader_default_handler_bigint(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+int lre_loader_default_handler_bigint(lre_loader_t *loader, const lre_metanumber_t *num) {
 	return LRE_FAIL;
 }
 
 
 lre_decl
-int lre_loader_default_handler_bigfloat(lre_loader_t *loader, lre_slice_t *slice, lre_number_info_t *info) {
+int lre_loader_default_handler_bigfloat(lre_loader_t *loader, const lre_metanumber_t *num) {
 	return LRE_FAIL;
 }
 
@@ -919,8 +881,6 @@ void lre_loader_init(lre_loader_t *loader, void *app_private) {
 	loader->handler_inf      = &lre_loader_default_handler_inf;
 	loader->handler_bigint   = &lre_loader_default_handler_bigint;
 	loader->handler_bigfloat = &lre_loader_default_handler_bigfloat;
-
-	loader->builtin_nfraction = 15;
 }
 
 
@@ -950,20 +910,21 @@ int lre_load_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 
 
 lre_decl
-int lrex_load_number_integer(lre_loader_t *loader, lre_number_info_t *info, lre_slice_t *slice, lre_error_t *error) {
+int lrex_load_number_integer(lre_loader_t *loader, const lre_metanumber_t *num, lre_error_t *error) {
 	uint64_t integral;
+	const uint8_t *src = num->integral_data;
 
-	if (lre_unlikely(info->nbytes_integral > 8 || lrex_tag_is_number_big(info->tag))) {
-		if (lre_unlikely(loader->handler_bigint(loader, slice, info) != LRE_OK)) {
+	if (lre_unlikely(num->integral_nbytes > 8 || lrex_tag_is_number_big(num->tag))) {
+		if (lre_unlikely(loader->handler_bigint(loader, num) != LRE_OK)) {
 			return lre_fail(LRE_ERROR_HANDLER, error);
 		}
 
 		return LRE_OK;
 	}
 
-	integral = lrex_read_uint64n(&slice->src, info->nbytes_integral, info->mask);
+	integral = lrex_read_uint64n(&src, num->integral_nbytes, num->negative_mask);
 
-	if (info->mask) {
+	if (num->negative_mask) {
 		if (lre_unlikely(integral > UINT64_C(9223372036854775808))) {
 			return lre_fail(LRE_ERROR_RANGE, error);
 		}
@@ -987,31 +948,55 @@ int lrex_load_number_integer(lre_loader_t *loader, lre_number_info_t *info, lre_
 
 
 lre_decl
-int lrex_load_number_float(lre_loader_t *loader, lre_number_info_t *info, lre_slice_t *slice, lre_error_t *error) {
+int lrex_load_number_float(lre_loader_t *loader, const lre_metanumber_t *num, lre_error_t *error) {
 	uint64_t integral;
 	uint64_t fraction;
 	double value;
 
-	if (lre_unlikely(info->nbytes_integral > 6 || info->ndigits_fraction > loader->builtin_nfraction)) {
-		if (lre_unlikely(loader->handler_bigfloat(loader, slice, info) != LRE_OK)) {
-			return lre_fail(LRE_ERROR_HANDLER, error);
+	if (lre_unlikely(num->integral_nbytes > 7 || num->fraction_nbytes > 7)) {
+		goto handle_bigfloat;
+	}
+
+	if (lre_unlikely(num->fraction_exponent > 0 || num->fraction_exponent < -1073)) {
+		goto handle_bigfloat;
+	}
+
+	{
+		const uint8_t *isrc = num->integral_data;
+		const uint8_t *fsrc = num->fraction_data;
+		integral = lrex_read_uint64n(&isrc, num->integral_nbytes, num->negative_mask);
+		fraction = lrex_read_uint64n(&fsrc, num->fraction_nbytes, num->negative_mask);
+	}
+
+	if (lre_unlikely(integral > INT64_C(9007199254740991) || fraction > INT64_C(9007199254740991))) {
+		goto handle_bigfloat;
+	}
+
+	value = integral;
+
+	if (lre_likely(fraction)) {
+		int nbits = lrex_log2i(fraction) + 1;
+		double f = ldexp(ldexp(fraction, -nbits), num->fraction_exponent);
+
+		value += f;
+
+		if (lre_unlikely(value - integral != f)) {
+			goto handle_bigfloat;
 		}
-
-		return LRE_OK;
 	}
 
-	integral = lrex_read_uint64n(&slice->src, info->nbytes_integral, info->mask);
-	fraction = lrex_read_decimal(&slice->src, info->ndigits_fraction);
-
-	if (info->mask) {
-		fraction = lrex_max10[info->ndigits_fraction] - fraction;
-		value = -(integral + (fraction / lrex_pow10[info->ndigits_fraction]));
-	}
-	else {
-		value = integral + (fraction / lrex_pow10[info->ndigits_fraction]);
+	if (num->negative_mask) {
+		value = -value;
 	}
 
 	if (lre_unlikely(loader->handler_float(loader, value) != LRE_OK)) {
+		return lre_fail(LRE_ERROR_HANDLER, error);
+	}
+
+	return LRE_OK;
+
+handle_bigfloat:
+	if (lre_unlikely(loader->handler_bigfloat(loader, num) != LRE_OK)) {
 		return lre_fail(LRE_ERROR_HANDLER, error);
 	}
 
@@ -1021,7 +1006,7 @@ int lrex_load_number_float(lre_loader_t *loader, lre_number_info_t *info, lre_sl
 
 lre_decl // TODO
 int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
-	lre_number_info_t info;
+	lre_metanumber_t num = {0};
 
 	if (lre_unlikely(lrex_tag_is_number_inf(tag))) {
 		if (lre_unlikely(loader->handler_inf(loader, tag) != LRE_OK)) {
@@ -1031,37 +1016,51 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 		return LRE_OK;
 	}
 
-	info.tag = tag;
-	info.mask = 0xff * lrex_tag_is_negative(tag);
+	num.tag = tag;
+	num.negative_mask = 0xff * lrex_tag_is_negative(tag);
 
 	if (lre_unlikely(lrex_tag_is_number_big(tag))) {
-		if (lre_unlikely(lre_slice_len(slice) < (4+16))) {
+		if (lre_unlikely(lre_slice_len(slice) < 4)) {
 			return lre_fail(LRE_ERROR_LENGTH, error);
 		}
 
-		info.nbytes_integral = lrex_read_uint16(&slice->src, info.mask);
+		num.integral_nbytes = lrex_read_uint16(&slice->src, num.negative_mask);
 	}
-	else if (info.mask) {
-		info.nbytes_integral = lrex_nbytes_by_tag_negative(tag);
+	else if (num.negative_mask) {
+		num.integral_nbytes = lrex_nbytes_by_tag_negative(tag);
 	}
 	else {
-		info.nbytes_integral = lrex_nbytes_by_tag_positive(tag);
+		num.integral_nbytes = lrex_nbytes_by_tag_positive(tag);
 	}
 
-	info.ndigits_fraction = lre_slice_len(slice) - (info.nbytes_integral * 2);
-
-	if (lre_unlikely(info.ndigits_fraction < 0)) {
+	if (lre_unlikely(num.integral_nbytes * 2 > lre_slice_len(slice))) {
 		return lre_fail(LRE_ERROR_LENGTH, error);
 	}
 
-	if (info.ndigits_fraction) {
-		return lrex_load_number_float(loader, &info, slice, error);
+	num.integral_data = slice->src;
+	slice->src += num.integral_nbytes * 2;
+
+	if (lre_slice_len(slice) < 4) {
+		return lrex_load_number_integer(loader, &num, error);
 	}
 
-	return lrex_load_number_integer(loader, &info, slice, error);
+	num.fraction_exponent = lrex_read_uint16(&slice->src, num.negative_mask);
+	num.fraction_exponent -= LRE_EXPONENT_BIAS;
+	num.fraction_data = slice->src;
+	num.fraction_nbytes = lre_slice_len(slice) / 2;
+
+	return lrex_load_number_float(loader, &num, error);
 }
 
 
+/**
+ * @brief Load values from string that created by lre_pack_* family
+ * @param loader Pointer to lre_loader_t
+ * @param src Pointer to string
+ * @param size Size of string
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) {
 	const uint8_t *sep = src;
@@ -1076,7 +1075,7 @@ int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_erro
 		if (lre_unlikely(lre_slice_len(&slice) < 0)) {
 			return lre_fail(LRE_ERROR_LENGTH, error);
 		}
-		
+
 		if (lrex_tag_is_string(tag)) {
 			if (lre_unlikely(lre_load_string(loader, tag, &slice, error) != LRE_OK)) {
 				return LRE_FAIL;
