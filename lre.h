@@ -266,7 +266,7 @@ lre_tag_t lrex_tag_by_nbytes_negative(int nbytes) {
 
 /**
  * @brief Returns number of bytes according to positive numeric tag
- * @param 
+ * @param numeric_tag Strictly numeric tag
  */
 lre_decl
 int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
@@ -276,7 +276,7 @@ int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
 
 /**
  * @brief Returns number of bytes according to negative numeric tag
- * @param 
+ * @param numeric_tag Strictly numeric tag
  */
 lre_decl
 int lrex_nbytes_by_tag_negative(lre_tag_t numeric_tag) {
@@ -329,7 +329,11 @@ int lrex_tag_is_positive(lre_tag_t tag) {
 }
 
 
-/* @brief Counting of significant bytes, always between 1, 8. */
+/**
+ * @brief Counting of significant bytes, always from 1 to 8.
+ * @param value Unsigned value
+ * @return Number of significant bytes
+ */
 lre_decl
 int lrex_count_nbytes(uint64_t value) {
 #if defined(__GNUC__) || defined(__clang__)
@@ -511,19 +515,19 @@ typedef struct {
 
 /**
  * @brief Create buffer instance with reserved memory. The buffer memory is always terminated with an extra null character.
- * @param reserve Reserved space
+ * @param reserve Reserved space. Always incremented by 1
  * @param error Pointer to lre_error_t or 0
  * @return Pointer to lre_buffer_t instance if success, 0 otherwise
  */
 lre_decl
 lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 	lre_buffer_t *buf = lre_std_calloc(1, sizeof(lre_buffer_t));
-	
+
 	if (lre_unlikely(!buf)) {
 		lre_fail(LRE_ERROR_ALLOCATION, error);
 		return 0;
 	}
-	
+
 	reserve++;
 	buf->data = lre_std_malloc(reserve);
 		
@@ -649,9 +653,6 @@ void lre_buffer_close(lre_buffer_t *buf) {
 
 /**
  * @brief Write string into buffer
- *
- * String will be written in the hexadecimal representation with one character of modifier.
- *
  * @param buf Pointer to lre_buffer_t
  * @param src Pointer to string
  * @param len Length of string
@@ -684,9 +685,6 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mo
 
 /**
  * @brief Write 64-bit signed integer value into buffer
- *
- * Value will be written in the hexadecimal representation byte by byte, so it length is always multiple of two.
- *
  * @param buf Pointer to lre_buffer_t
  * @param value Integer value
  * @param error Pointer to lre_error_t or 0
@@ -1055,6 +1053,14 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 }
 
 
+/**
+ * @brief Load values from string that created by lre_pack_* family
+ * @param loader Pointer to lre_loader_t
+ * @param src Pointer to string
+ * @param size Size of string
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
 lre_decl
 int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) {
 	const uint8_t *sep = src;
