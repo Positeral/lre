@@ -90,6 +90,11 @@ class TestOrder(unittest.TestCase):
         l2 = sorted(l1, key=lre.dumps)
         self.assertEqual(l1, l2, 'invalid order')
 
+    def testSortingString(self):
+        l1 = [['00', 2], ['000', 3]]
+        l2 = sorted(l1, key=lre.dumps)
+        self.assertEqual(l1, l2, 'invalid order')
+
 
 class TestLimits(unittest.TestCase):
     def testNan(self):
