@@ -23,7 +23,7 @@ pip install git+https://github.com/Positeral/lre.git#subdirectory=python
 ### Usage
 ```python
 >>> lre.dumps(['email', 'home@cern'])
-b'X656d61696cL+X686f6d65406365726eL+'
+b'XgfgngbgjgmL+XgigpgngfeagdgfhcgoL+'
 ```
 Natural comparing of numbers:
 ```python
@@ -40,17 +40,17 @@ True
 Because LRE format purposely is **flat** by design, it makes no difference between nested lists. Empty lists are ignored:
 ```python
 >>> lre.dumps(['user', 'admin', 1])
-b'X75736572L+X61646d696eL+M01+'
+b'XhfhdgfhcL+XgbgegngjgoL+Mab+'
 >>> lre.dumps(['user', ['admin'], [[1]], []])
-b'X75736572L+X61646d696eL+M01+'
+b'XhfhdgfhcL+XgbgegngjgoL+Mab+'
 ```
 
 Also `'abc'` is it the same as `['abc']`:
 ```python
 >>> lre.dumps('key')
-b'X6b6579L+'
+b'XglgfhjL+'
 >>> lre.dumps(['key'])
-b'X6b6579L+'
+b'XglgfhjL+'
 ```
 
 This "flat behavior" is necessary for easy and unambiguous key concatenation.
