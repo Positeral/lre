@@ -124,7 +124,7 @@ cdef class LRE:
 
 	cpdef load(self, key)
 	
-	cdef buffer_write(self, key)
+	cdef buffer_write(self, key, int depth)
 
 	cdef buffer_write_int(self, pyint)
 

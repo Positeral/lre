@@ -51,7 +51,7 @@ cdef class LRE:
 		lre_buffer_reset_fast(self.lrbuffer)
 
 		try:
-			self.buffer_write(key)
+			self.buffer_write(key, 0)
 			return (<char *> self.lrbuffer.data)[:self.lrbuffer.size]
 		finally:
 			if lre_buffer_reset(self.lrbuffer, &error) != LRE_OK:
@@ -79,10 +79,13 @@ cdef class LRE:
 		finally:
 			self.tmpkey = []
 
-	cdef buffer_write(self, key):
+	cdef buffer_write(self, key, int depth):
 		cdef lre_error_t    error = LRE_ERROR_NOTHING
 		cdef const uint8_t *str_value
 		cdef Py_ssize_t     str_size
+
+		if depth > 32:
+			raise ValueError('maximum depth exceeded')
 
 		if not isinstance(key, list):
 			key = [key]
@@ -103,7 +106,7 @@ cdef class LRE:
 				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_MOD_STRING_RAW, &error)
 	
 			elif isinstance(i, list):
-				self.buffer_write(i)
+				self.buffer_write(i, depth + 1)
 	
 			else:
 				raise ValueError('type <%s> is unsupported' % type(i).__name__)
