@@ -111,33 +111,6 @@ extern "C" {
 #endif
 
 
-/* Encoding */
-static const uint8_t lrex_hextab[16] = {
-	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e','f'
-};
-
-
-/* Decoding */
-static const uint8_t lrex_hexrev[256] = {
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0,   0,   0,   0,   0,   0,   // 0-9
-	0,   0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0,   0,   0,   0,   0,   0,   0,   0,   0,   // a-f
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   
-	0,   0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0,   0,   0,   0,   0,   0,   0,   0,   0,   // A-F
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  
-	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-};
-
-
 typedef enum {
 	LRE_SEP_NEGATIVE = '~',
 	LRE_SEP_POSITIVE = '+'
@@ -392,8 +365,8 @@ void lrex_write_char(uint8_t **dst, uint8_t value) {
 
 lre_decl
 void lrex_write_uint8(uint8_t **dst, uint8_t value) {
-	lrex_write_char(dst, lrex_hextab[value >> 4]);
-	lrex_write_char(dst, lrex_hextab[value & 0xf]);
+	lrex_write_char(dst, 'a' + (value >> 4));
+	lrex_write_char(dst, 'a' + (value & 0xf));
 }
 
 
@@ -430,8 +403,8 @@ uint8_t lrex_read_char(const uint8_t **src) {
 
 lre_decl
 uint8_t lrex_read_uint8(const uint8_t **src, uint8_t mask) {
-	int a = lrex_hexrev[lrex_read_char(src)];
-	int b = lrex_hexrev[lrex_read_char(src)];
+	int a = lrex_read_char(src) - 'a';
+	int b = lrex_read_char(src) - 'a';
 	return ((a << 4) | b) ^ mask;
 }
 
