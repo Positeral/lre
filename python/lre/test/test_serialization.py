@@ -105,5 +105,12 @@ class TestLimits(unittest.TestCase):
         with self.assertRaises(OverflowError):
             lre.dumps(2**524280)
 
+    def testDepthLimit(self):
+        l = []
+        l.append(l)
+
+        with self.assertRaises(ValueError):
+            lre.dumps(l)
+
 
 
