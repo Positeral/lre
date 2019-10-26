@@ -18,11 +18,12 @@ Data types:
 * +INF and -INF are supported
 * Big numbers are supported by external assistance
 
-Limits:
+Limitations:
 * NaN purposely not supported due to ambiguity
 * No difference between 0, -0.0 and +0.0, between 1 and 1.0
 * Built-in float-point range is -9007199254740991.0, 9007199254740991.0
 * Built-in integer range is -9223372036854775808, 9223372036854775807
+* Due to textual format LRE is not well-suitable for large keys
 
 #### Serialization
 
@@ -57,7 +58,7 @@ int main() {
 
 Output:
 ```
-lre: X616263H+Nffaa+M0a3fff1cccccccccccd0+
+lre: XgbgcgdH+Nppkk+Makdpppbmmmmmmmmmmmna+
 len: 37
 ```
 
@@ -67,10 +68,13 @@ len: 37
 #include <stdio.h>
 #include <lre.h>
 
-int handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) {
-    uint8_t buf[64] = {0};
-    lrex_read_str(&slice->src, buf, lre_slice_len(slice), 0);
-    printf("String: %s\n", buf);
+int handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_enc_t encoding) {
+    uint8_t buf[100] = {0};
+    size_t nbytes = lre_slice_len(slice) / 2;
+
+    lrex_read_str(&slice->src, buf, nbytes, 0);
+
+    printf("String %s\n", buf);
     return LRE_OK;
 }
 
@@ -85,7 +89,7 @@ int handler_float(lre_loader_t *loader, double value) {
 }
 
 int main() {
-    char  *str = "X616263H+Nffaa+M0a3fff1cccccccccccd0+";
+    char  *str = "XgbgcgdH+Nppkk+Makdpppbmmmmmmmmmmmna+";
     size_t len = strlen(str);
 
     lre_error_t error = 0;

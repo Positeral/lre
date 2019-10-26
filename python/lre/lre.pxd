@@ -25,7 +25,7 @@ cdef extern from 'lre.h':
 		LRE_ERROR_LENGTH
 		LRE_ERROR_TAG
 		LRE_ERROR_SIGN
-		LRE_ERROR_MOD
+		LRE_ERROR_ENC
 		LRE_ERROR_HANDLER
 
 	cdef enum lre_sep_t:
@@ -55,10 +55,10 @@ cdef extern from 'lre.h':
 		LRE_TAG_NUMBER_POSITIVE_INF
 		LRE_TAG_STRING
 
-	ctypedef enum lre_mod_t:
-		LRE_MOD_DEFAULT
-		LRE_MOD_STRING_RAW
-		LRE_MOD_STRING_UTF8
+	ctypedef enum lre_enc_t:
+		LRE_ENC_NONE
+		LRE_ENC_RAW
+		LRE_ENC_UTF8
 
 	void     lrex_write_char(uint8_t **dst, uint8_t value)
 	void     lrex_write_uint16(uint8_t **dst, uint16_t value)
@@ -80,7 +80,7 @@ cdef extern from 'lre.h':
 	int           lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error)
 	void          lre_buffer_close(lre_buffer_t *buf)
 
-	int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mod, lre_error_t *error)
+	int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_enc_t enc, lre_error_t *error)
 	int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error)
 	int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error)
 
@@ -103,7 +103,7 @@ cdef extern from 'lre.h':
 		void *app_private;
 		int (*handler_int)     (lre_loader_t *loader, int64_t value) except? LRE_FAIL
 		int (*handler_float)   (lre_loader_t *loader, double value)  except? LRE_FAIL
-		int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL
+		int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) except? LRE_FAIL
 		int (*handler_inf)     (lre_loader_t *loader, lre_tag_t tag) except? LRE_FAIL
 		int (*handler_bigint)  (lre_loader_t *loader, const lre_metanumber_t *num) except? LRE_FAIL
 		int (*handler_bigfloat)(lre_loader_t *loader, const lre_metanumber_t *num) except? LRE_FAIL
@@ -124,7 +124,7 @@ cdef class LRE:
 
 	cpdef load(self, key)
 	
-	cdef buffer_write(self, key)
+	cdef buffer_write(self, key, int depth)
 
 	cdef buffer_write_int(self, pyint)
 
@@ -135,7 +135,7 @@ cdef class LRE:
 	cdef int callback_load_float(lre_loader_t *loader, double value) except? LRE_FAIL
 
 	@staticmethod # Call by lre_tokenize()
-	cdef int callback_load_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL
+	cdef int callback_load_str(lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) except? LRE_FAIL
 
 	@staticmethod # Call by lre_tokenize()
 	cdef int callback_load_bigint(lre_loader_t *loader, const lre_metanumber_t *num) except? LRE_FAIL

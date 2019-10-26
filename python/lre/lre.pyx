@@ -51,7 +51,7 @@ cdef class LRE:
 		lre_buffer_reset_fast(self.lrbuffer)
 
 		try:
-			self.buffer_write(key)
+			self.buffer_write(key, 0)
 			return (<char *> self.lrbuffer.data)[:self.lrbuffer.size]
 		finally:
 			if lre_buffer_reset(self.lrbuffer, &error) != LRE_OK:
@@ -79,10 +79,13 @@ cdef class LRE:
 		finally:
 			self.tmpkey = []
 
-	cdef buffer_write(self, key):
+	cdef buffer_write(self, key, int depth):
 		cdef lre_error_t    error = LRE_ERROR_NOTHING
 		cdef const uint8_t *str_value
 		cdef Py_ssize_t     str_size
+
+		if depth > 32:
+			raise ValueError('maximum depth exceeded')
 
 		if not isinstance(key, list):
 			key = [key]
@@ -90,7 +93,7 @@ cdef class LRE:
 		for i in key:
 			if isinstance(i, unicode):
 				str_value = <const uint8_t *> PyUnicode_AsUTF8AndSize(i, &str_size)
-				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_MOD_STRING_UTF8, &error)
+				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_ENC_UTF8, &error)
 
 			elif isinstance(i, float):
 				lre_pack_float(self.lrbuffer, i, &error)
@@ -100,10 +103,10 @@ cdef class LRE:
 	
 			elif isinstance(i, bytes):
 				PyBytes_AsStringAndSize(i, <char **> &str_value, &str_size)
-				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_MOD_STRING_RAW, &error)
+				lre_pack_str(self.lrbuffer, str_value, str_size, LRE_ENC_RAW, &error)
 	
 			elif isinstance(i, list):
-				self.buffer_write(i)
+				self.buffer_write(i, depth + 1)
 	
 			else:
 				raise ValueError('type <%s> is unsupported' % type(i).__name__)
@@ -167,14 +170,14 @@ cdef class LRE:
 		return LRE_OK
 
 	@staticmethod # Call by lre_tokenize()
-	cdef int callback_load_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) except? LRE_FAIL:
+	cdef int callback_load_str(lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) except? LRE_FAIL:
 		cdef LRE       self   = <LRE> loader.app_private
 		cdef ptrdiff_t nbytes = lre_slice_len(slice) >> 1
 		cdef bytes     s      = PyBytes_FromStringAndSize(NULL, nbytes)
 
 		lrex_read_str(&slice.src, <uint8_t *> (<char *> s), nbytes, 0)
 
-		if mod == LRE_MOD_STRING_UTF8:
+		if enc == LRE_ENC_UTF8:
 			self.tmpkey.append(s.decode('utf8'))
 		else:
 			self.tmpkey.append(s)
