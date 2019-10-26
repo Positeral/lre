@@ -145,12 +145,12 @@ typedef enum {
 } lre_tag_t;
 
 
-/* String modifiers */
+/* String encodings */
 typedef enum {
-	LRE_MOD_DEFAULT     = 0, /* Will never be packed */
-	LRE_MOD_STRING_RAW  = 'H',
-	LRE_MOD_STRING_UTF8 = 'L'
-} lre_mod_t;
+	LRE_ENC_NONE = 0,  /* The same as LRE_ENC_RAW */
+	LRE_ENC_RAW  = 'H',
+	LRE_ENC_UTF8 = 'L'
+} lre_enc_t;
 
 
 typedef enum {
@@ -162,7 +162,7 @@ typedef enum {
 	LRE_ERROR_LENGTH,
 	LRE_ERROR_TAG,
 	LRE_ERROR_SIGN,
-	LRE_ERROR_MOD,
+	LRE_ERROR_ENC,
 	LRE_ERROR_HANDLER
 } lre_error_t;
 
@@ -178,7 +178,7 @@ const char *lre_strerror(lre_error_t error) {
 		case LRE_ERROR_LENGTH:     return "invalid length of data";
 		case LRE_ERROR_TAG:        return "unknown tag";
 		case LRE_ERROR_SIGN:       return "unknown sign";
-		case LRE_ERROR_MOD:        return "unknown string modifier";
+		case LRE_ERROR_ENC:        return "unknown string encoding";
 		case LRE_ERROR_HANDLER:    return "final value cannot be handled";
 		default:                   return "unknown error";
 	}
@@ -629,24 +629,24 @@ void lre_buffer_close(lre_buffer_t *buf) {
  * @param buf Pointer to lre_buffer_t
  * @param src Pointer to string
  * @param len Length of string
- * @param mod String modifier: LRE_MOD_STRING_RAW (also 0), LRE_MOD_STRING_UTF8
+ * @param enc String encofing: LRE_ENC_RAW (also 0), LRE_ENC_UTF8
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
 lre_decl
-int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_mod_t mod, lre_error_t *error) {
-	/* tag(1) + string(len*2) + modifier(1) + separator(1) */
+int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_enc_t enc, lre_error_t *error) {
+	/* tag(1) + string(len*2) + encoding(1) + separator(1) */
 	if (lre_likely(lre_buffer_require(buf, (1+(len*2)+1+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
 		
 		lrex_write_char(&dst, LRE_TAG_STRING);
 		
-		if (lre_unlikely(!mod)) {
-			mod = LRE_MOD_STRING_RAW;
+		if (lre_unlikely(!enc)) {
+			enc = LRE_ENC_RAW;
 		}
 		
 		lrex_write_str (&dst, src, len, 0);
-		lrex_write_char(&dst, (int) mod);
+		lrex_write_char(&dst, (int) enc);
 		lrex_write_char(&dst, LRE_SEP_POSITIVE);
 		lre_buffer_set_size_distance(buf, dst);
 		return LRE_OK;
@@ -796,7 +796,7 @@ typedef struct lre_loader_t {
 	int (*handler_int)     (lre_loader_t *loader, int64_t value);
 	int (*handler_float)   (lre_loader_t *loader, double value);
 	int (*handler_inf)     (lre_loader_t *loader, lre_tag_t tag);
-	int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod);
+	int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc);
 	int (*handler_bigint)  (lre_loader_t *loader, const lre_metanumber_t *num);
 	int (*handler_bigfloat)(lre_loader_t *loader, const lre_metanumber_t *num);
 } lre_loader_t;
@@ -815,7 +815,7 @@ int lre_loader_default_handler_float(lre_loader_t *loader, double value) {
 
 
 lre_decl
-int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_mod_t mod) {
+int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) {
 	return LRE_FAIL;
 }
 
@@ -859,22 +859,22 @@ void lre_loader_init(lre_loader_t *loader, void *app_private) {
 
 lre_decl // TODO
 int lre_load_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
-	lre_mod_t modifier;
+	lre_enc_t encoding;
 	
 	if (lre_unlikely((lre_slice_len(slice) - 1) % 2)) {
 		return lre_fail(LRE_ERROR_LENGTH, error);
 	}
 	
-	/* Last character is a modifier value */
-	modifier = (lre_mod_t) lre_slice_pop(slice);
+	/* Last character is a encoding value */
+	encoding = (lre_enc_t) lre_slice_pop(slice);
 	
-	switch (modifier) {
-		case LRE_MOD_STRING_UTF8: break;
-		case LRE_MOD_STRING_RAW:  break;
-		default: return lre_fail(LRE_ERROR_MOD, error);
+	switch (encoding) {
+		case LRE_ENC_UTF8: break;
+		case LRE_ENC_RAW:  break;
+		default: return lre_fail(LRE_ERROR_ENC, error);
 	}
 	
-	if (lre_unlikely(loader->handler_str(loader, slice, modifier) != LRE_OK)) {
+	if (lre_unlikely(loader->handler_str(loader, slice, encoding) != LRE_OK)) {
 		return lre_fail(LRE_ERROR_HANDLER, error);
 	}
 	
