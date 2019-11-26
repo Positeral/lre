@@ -517,9 +517,30 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 	return buf;
 }
 
+/**
+ * @brief Allocate additional memory.
+ * @param buf Pointer to lre_buffer_t
+ * @param required Required memory
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
+lre_decl
+int lre_buffer_allocate(lre_buffer_t *buf, size_t required, lre_error_t *error) {
+	size_t capacity = (buf->size + required + 1) * 10 / 8; /* +25% */
+	uint8_t *data = lre_std_realloc(buf->data, capacity);
+
+	if (lre_unlikely(!data)) {
+		return lre_fail(LRE_ERROR_ALLOCATION, error);
+	}
+
+	buf->data = data;
+	buf->capacity = capacity;
+	return LRE_OK;
+}
+
 
 /**
- * @brief Request buffer space. If capacity is too small, allocate additional memory.
+ * @brief If available capacity < required, allocate additional memory.
  * @param buf Pointer to lre_buffer_t
  * @param required Required memory
  * @param error Pointer to lre_error_t or 0
@@ -528,17 +549,9 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		size_t capacity = (buf->size + required + 1) * 10 / 8; /* +25% */
-		uint8_t *data = lre_std_realloc(buf->data, capacity);
-		
-		if (lre_unlikely(!data)) {
-			return lre_fail(LRE_ERROR_ALLOCATION, error);
-		}
-		
-		buf->data = data;
-		buf->capacity = capacity;
+		return lre_buffer_allocate(buf, required, error);
 	}
-	
+
 	return LRE_OK;
 }
 

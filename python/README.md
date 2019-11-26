@@ -1,7 +1,5 @@
 # LRE / Python
 
-LRE (Lexicographic REpresentation) - is a rapid serializer of numbers and strings for composite keys. It converts a set of values to special ASCII-string providing a natural order for serialized numbers in lexicographically comparing, so deserialization for every key comparing is not required. This is very helpful for key-value databases like LMDB or Berkeley DB which stores arbitrary keys as byte arrays in lexicographical order by default.
-
 Data types:
 * String (unicode, bytes)
 * Integer
@@ -25,7 +23,8 @@ pip install git+https://github.com/Positeral/lre.git#subdirectory=python
 >>> lre.dumps(['email', 'home@cern'])
 b'XgfgngbgjgmL+XgigpgngfeagdgfhcgoL+'
 ```
-Natural comparing of numbers:
+
+Ordering serialized numbers numerically:
 ```python
 >>> lre.dumps(123) == lre.dumps(123.0)
 True
@@ -37,7 +36,7 @@ True
 [-10.5, -10, -1, 0, 2, 10, 100]
 ```
 
-Because LRE format purposely is **flat** by design, it makes no difference between nested lists. Empty lists are ignored:
+Because the LRE format purposely is **flat** by design, it makes no difference between nested lists. Empty lists are ignored:
 ```python
 >>> lre.dumps(['user', 'admin', 1])
 b'XhfhdgfhcL+XgbgegngjgoL+Mab+'
