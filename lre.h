@@ -719,8 +719,8 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 		return lre_fail(LRE_ERROR_NAN, error);
 	}
 
-	/* tag(1) + integral(16) + exp(4) + fraction(14) + size(1) */
-	if (lre_likely(lre_buffer_require(buf, (1+4+14+1), error) == LRE_OK)) {
+	/* tag(1) + integral(16) + exp(4) + fraction(14) + separator(1) */
+	if (lre_likely(lre_buffer_require(buf, (1+16+(4+14)+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
 		int negative = 0;
 
