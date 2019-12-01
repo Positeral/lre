@@ -106,6 +106,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+#if defined(LRE_DEBUG)
+	#define lre_debug(...) (printf("%s:%i: ", __FUNCTION__, __LINE__), printf(__VA_ARGS__))
+	#define lre_fail(error, to) ((lre_debug("%s\n", lre_strerror(error)), to) ? *(to)=error, error : error)
+#else
+	#define lre_debug(...)
+	#define lre_fail(error, to) ((to) ? *(to)=error, error : error)
+#endif
+
+
 #if __cplusplus
 extern "C" {
 #endif
@@ -184,15 +193,6 @@ const char *lre_strerror(lre_error_t error) {
 	}
 }
 
-
-lre_decl
-int lre_fail(lre_error_t error, lre_error_t *to) {
-	if (lre_likely(to)) {
-		*to = error;
-	}
-	
-	return LRE_FAIL;
-}
 
 /*
  * LREX low-level functions are designed to be as fast as possible,
