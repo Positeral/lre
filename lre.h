@@ -165,6 +165,7 @@ typedef enum {
 typedef enum {
 	LRE_ERROR_NOTHING = 0,
 	LRE_ERROR_ALLOCATION,
+	LRE_ERROR_ALLOCATION_SMALL,
 	LRE_ERROR_NULLPTR,
 	LRE_ERROR_RANGE,
 	LRE_ERROR_NAN,
@@ -181,6 +182,7 @@ const char *lre_strerror(lre_error_t error) {
 	switch (error) {
 		case LRE_ERROR_NOTHING:    return "Successful return";
 		case LRE_ERROR_ALLOCATION: return "Memory cannot be (re)allocated";
+		case LRE_ERROR_ALLOCATION_SMALL: return "(Re)allocated memory is too small";
 		case LRE_ERROR_NULLPTR:    return "Null pointer passed";
 		case LRE_ERROR_RANGE:      return "Value out of allowed range";
 		case LRE_ERROR_NAN:        return "Value is NaN";
@@ -487,6 +489,40 @@ typedef struct {
 
 
 /**
+ * @brief Reallocate memory.
+ * @param buf Pointer to lre_buffer_t
+ * @param capacity New capacity of buffer
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
+lre_decl
+int lre_buffer_reallocate(lre_buffer_t *buf, size_t capacity, lre_error_t *error) {
+	lre_debug("go %3lu reserved=%lu size=%lu\n", capacity, buf->reserved, buf->size);
+
+	if (lre_unlikely(capacity < buf->reserved)) {
+		capacity = buf->reserved;
+	}
+
+	if (lre_unlikely(capacity < buf->size)) {
+		return lre_fail(LRE_ERROR_ALLOCATION_SMALL, error);
+	}
+
+	{
+		uint8_t *data = lre_std_realloc(buf->data, capacity);
+
+		if (lre_unlikely(!data)) {
+			return lre_fail(LRE_ERROR_ALLOCATION, error);
+		}
+
+		buf->data = data;
+		buf->capacity = capacity;
+	}
+
+	return LRE_OK;
+}
+
+
+/**
  * @brief Create buffer instance with reserved memory. The buffer memory is always terminated with an extra null character.
  * @param reserve Reserved space. Always incremented by 1
  * @param error Pointer to lre_error_t or 0
@@ -502,40 +538,16 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 	}
 
 	reserve++;
-	buf->data = lre_std_malloc(reserve);
-		
-	if (!buf->data) {
-		lre_fail(LRE_ERROR_ALLOCATION, error);
-		lre_std_free(buf);
+
+	if (lre_unlikely(lre_buffer_reallocate(buf, reserve, error) != LRE_OK)) {
 		return 0;
 	}
-	
+
 	buf->data[0] = '\0';
 	buf->reserved = reserve;
 	buf->capacity = reserve;
 
 	return buf;
-}
-
-/**
- * @brief Allocate additional memory.
- * @param buf Pointer to lre_buffer_t
- * @param required Required memory
- * @param error Pointer to lre_error_t or 0
- * @return LRE_OK if success, LRE_FAIL otherwise
- */
-lre_decl
-int lre_buffer_allocate(lre_buffer_t *buf, size_t required, lre_error_t *error) {
-	size_t capacity = (buf->size + required + 1) * 10 / 8; /* +25% */
-	uint8_t *data = lre_std_realloc(buf->data, capacity);
-
-	if (lre_unlikely(!data)) {
-		return lre_fail(LRE_ERROR_ALLOCATION, error);
-	}
-
-	buf->data = data;
-	buf->capacity = capacity;
-	return LRE_OK;
 }
 
 
@@ -549,7 +561,7 @@ int lre_buffer_allocate(lre_buffer_t *buf, size_t required, lre_error_t *error) 
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		return lre_buffer_allocate(buf, required, error);
+		return lre_buffer_reallocate(buf, buf->size + required, error);
 	}
 
 	return LRE_OK;
@@ -607,14 +619,7 @@ int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
 	lre_buffer_reset_fast(buf);
 
 	if (lre_unlikely(buf->capacity != buf->reserved)) {
-		uint8_t *data = lre_std_realloc(buf->data, buf->reserved);
-		
-		if (lre_unlikely(!data)) {
-			return lre_fail(LRE_ERROR_ALLOCATION, error);
-		}
-		
-		buf->data = data;
-		buf->capacity = buf->reserved;
+		return lre_buffer_reallocate(buf, buf->reserved, error);
 	}
 	
 	return LRE_OK;
