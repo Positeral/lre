@@ -180,18 +180,18 @@ typedef enum {
 lre_decl
 const char *lre_strerror(lre_error_t error) {
 	switch (error) {
-		case LRE_ERROR_NOTHING:    return "Successful return";
-		case LRE_ERROR_ALLOCATION: return "Memory cannot be (re)allocated";
+		case LRE_ERROR_NOTHING:          return "Successful return";
+		case LRE_ERROR_ALLOCATION:       return "(Re)allocation failed";
 		case LRE_ERROR_ALLOCATION_SMALL: return "(Re)allocated memory is too small";
-		case LRE_ERROR_NULLPTR:    return "Null pointer passed";
-		case LRE_ERROR_RANGE:      return "Value out of allowed range";
-		case LRE_ERROR_NAN:        return "Value is NaN";
-		case LRE_ERROR_LENGTH:     return "Invalid length of data";
-		case LRE_ERROR_TAG:        return "Unknown tag";
-		case LRE_ERROR_SIGN:       return "Unknown sign";
-		case LRE_ERROR_ENC:        return "Unknown string encoding";
-		case LRE_ERROR_HANDLER:    return "Final value cannot be handled";
-		default:                   return "Unknown error";
+		case LRE_ERROR_NULLPTR:          return "Null pointer passed";
+		case LRE_ERROR_RANGE:            return "Value out of allowed range";
+		case LRE_ERROR_NAN:              return "Value is NaN";
+		case LRE_ERROR_LENGTH:           return "Invalid length of data";
+		case LRE_ERROR_TAG:              return "Unknown tag";
+		case LRE_ERROR_SIGN:             return "Unknown sign";
+		case LRE_ERROR_ENC:              return "Unknown string encoding";
+		case LRE_ERROR_HANDLER:          return "Final value cannot be handled";
+		default:                         return "Unknown error";
 	}
 }
 
