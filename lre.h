@@ -497,7 +497,7 @@ typedef struct {
  */
 lre_decl
 int lre_buffer_reallocate(lre_buffer_t *buf, size_t capacity, lre_error_t *error) {
-	lre_debug("go %3lu reserved=%lu size=%lu\n", capacity, buf->reserved, buf->size);
+	lre_debug("%i reserved=%i size=%i\n", (int) capacity, (int) buf->reserved, (int) buf->size);
 
 	if (lre_unlikely(capacity < buf->reserved)) {
 		capacity = buf->reserved;
@@ -631,6 +631,8 @@ int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
  */
 lre_decl
 void lre_buffer_close(lre_buffer_t *buf) {
+	lre_debug("%p\n", buf);
+
 	if (buf) {
 		lre_std_free(buf->data);
 		lre_std_free(buf);
@@ -822,18 +824,21 @@ typedef struct lre_loader_t {
 
 lre_decl
 int lre_loader_default_handler_int(lre_loader_t *loader, int64_t value) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_float(lre_loader_t *loader, double value) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
@@ -841,6 +846,7 @@ int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre
 lre_decl
 int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 	double value = lrex_tag_is_negative(tag) ? -INFINITY : INFINITY;
+	lre_debug("call\n");
 
 	if (lre_likely(loader->handler_float)) {
 		return loader->handler_float(loader, value);
@@ -852,12 +858,14 @@ int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 
 lre_decl
 int lre_loader_default_handler_bigint(lre_loader_t *loader, const lre_metanumber_t *num) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_bigfloat(lre_loader_t *loader, const lre_metanumber_t *num) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
