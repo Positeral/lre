@@ -106,6 +106,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+#if defined(LRE_DEBUG)
+	#define lre_debug(...) (printf("%s:%i: ", __FUNCTION__, __LINE__), printf(__VA_ARGS__))
+	#define lre_fail(error, to) ((lre_debug("%s\n", lre_strerror(error)), to) ? *(to)=error, error : error)
+#else
+	#define lre_debug(...)
+	#define lre_fail(error, to) ((to) ? *(to)=error, error : error)
+#endif
+
+
 #if __cplusplus
 extern "C" {
 #endif
@@ -156,6 +165,7 @@ typedef enum {
 typedef enum {
 	LRE_ERROR_NOTHING = 0,
 	LRE_ERROR_ALLOCATION,
+	LRE_ERROR_ALLOCATION_SMALL,
 	LRE_ERROR_NULLPTR,
 	LRE_ERROR_RANGE,
 	LRE_ERROR_NAN,
@@ -170,29 +180,21 @@ typedef enum {
 lre_decl
 const char *lre_strerror(lre_error_t error) {
 	switch (error) {
-		case LRE_ERROR_NOTHING:    return "successful return";
-		case LRE_ERROR_ALLOCATION: return "memory cannot be (re)allocated";
-		case LRE_ERROR_NULLPTR:    return "null pointer passed";		
-		case LRE_ERROR_RANGE:      return "value out of allowed range";
-		case LRE_ERROR_NAN:        return "value is NaN";
-		case LRE_ERROR_LENGTH:     return "invalid length of data";
-		case LRE_ERROR_TAG:        return "unknown tag";
-		case LRE_ERROR_SIGN:       return "unknown sign";
-		case LRE_ERROR_ENC:        return "unknown string encoding";
-		case LRE_ERROR_HANDLER:    return "final value cannot be handled";
-		default:                   return "unknown error";
+		case LRE_ERROR_NOTHING:          return "Successful return";
+		case LRE_ERROR_ALLOCATION:       return "(Re)allocation failed";
+		case LRE_ERROR_ALLOCATION_SMALL: return "(Re)allocated memory is too small";
+		case LRE_ERROR_NULLPTR:          return "Null pointer passed";
+		case LRE_ERROR_RANGE:            return "Value out of allowed range";
+		case LRE_ERROR_NAN:              return "Value is NaN";
+		case LRE_ERROR_LENGTH:           return "Invalid length of data";
+		case LRE_ERROR_TAG:              return "Unknown tag";
+		case LRE_ERROR_SIGN:             return "Unknown sign";
+		case LRE_ERROR_ENC:              return "Unknown string encoding";
+		case LRE_ERROR_HANDLER:          return "Final value cannot be handled";
+		default:                         return "Unknown error";
 	}
 }
 
-
-lre_decl
-int lre_fail(lre_error_t error, lre_error_t *to) {
-	if (lre_likely(to)) {
-		*to = error;
-	}
-	
-	return LRE_FAIL;
-}
 
 /*
  * LREX low-level functions are designed to be as fast as possible,
@@ -487,6 +489,40 @@ typedef struct {
 
 
 /**
+ * @brief Reallocate memory.
+ * @param buf Pointer to lre_buffer_t
+ * @param capacity New capacity of buffer
+ * @param error Pointer to lre_error_t or 0
+ * @return LRE_OK if success, LRE_FAIL otherwise
+ */
+lre_decl
+int lre_buffer_reallocate(lre_buffer_t *buf, size_t capacity, lre_error_t *error) {
+	lre_debug("%i reserved=%i size=%i\n", (int) capacity, (int) buf->reserved, (int) buf->size);
+
+	if (lre_unlikely(capacity < buf->reserved)) {
+		capacity = buf->reserved;
+	}
+
+	if (lre_unlikely(capacity < buf->size)) {
+		return lre_fail(LRE_ERROR_ALLOCATION_SMALL, error);
+	}
+
+	{
+		uint8_t *data = lre_std_realloc(buf->data, capacity);
+
+		if (lre_unlikely(!data)) {
+			return lre_fail(LRE_ERROR_ALLOCATION, error);
+		}
+
+		buf->data = data;
+		buf->capacity = capacity;
+	}
+
+	return LRE_OK;
+}
+
+
+/**
  * @brief Create buffer instance with reserved memory. The buffer memory is always terminated with an extra null character.
  * @param reserve Reserved space. Always incremented by 1
  * @param error Pointer to lre_error_t or 0
@@ -502,40 +538,16 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 	}
 
 	reserve++;
-	buf->data = lre_std_malloc(reserve);
-		
-	if (!buf->data) {
-		lre_fail(LRE_ERROR_ALLOCATION, error);
-		lre_std_free(buf);
+
+	if (lre_unlikely(lre_buffer_reallocate(buf, reserve, error) != LRE_OK)) {
 		return 0;
 	}
-	
+
 	buf->data[0] = '\0';
 	buf->reserved = reserve;
 	buf->capacity = reserve;
 
 	return buf;
-}
-
-/**
- * @brief Allocate additional memory.
- * @param buf Pointer to lre_buffer_t
- * @param required Required memory
- * @param error Pointer to lre_error_t or 0
- * @return LRE_OK if success, LRE_FAIL otherwise
- */
-lre_decl
-int lre_buffer_allocate(lre_buffer_t *buf, size_t required, lre_error_t *error) {
-	size_t capacity = (buf->size + required + 1) * 10 / 8; /* +25% */
-	uint8_t *data = lre_std_realloc(buf->data, capacity);
-
-	if (lre_unlikely(!data)) {
-		return lre_fail(LRE_ERROR_ALLOCATION, error);
-	}
-
-	buf->data = data;
-	buf->capacity = capacity;
-	return LRE_OK;
 }
 
 
@@ -549,7 +561,7 @@ int lre_buffer_allocate(lre_buffer_t *buf, size_t required, lre_error_t *error) 
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		return lre_buffer_allocate(buf, required, error);
+		return lre_buffer_reallocate(buf, buf->size + required, error);
 	}
 
 	return LRE_OK;
@@ -607,14 +619,7 @@ int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
 	lre_buffer_reset_fast(buf);
 
 	if (lre_unlikely(buf->capacity != buf->reserved)) {
-		uint8_t *data = lre_std_realloc(buf->data, buf->reserved);
-		
-		if (lre_unlikely(!data)) {
-			return lre_fail(LRE_ERROR_ALLOCATION, error);
-		}
-		
-		buf->data = data;
-		buf->capacity = buf->reserved;
+		return lre_buffer_reallocate(buf, buf->reserved, error);
 	}
 	
 	return LRE_OK;
@@ -626,6 +631,8 @@ int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
  */
 lre_decl
 void lre_buffer_close(lre_buffer_t *buf) {
+	lre_debug("%p\n", buf);
+
 	if (buf) {
 		lre_std_free(buf->data);
 		lre_std_free(buf);
@@ -719,8 +726,8 @@ int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 		return lre_fail(LRE_ERROR_NAN, error);
 	}
 
-	/* tag(1) + integral(16) + exp(4) + fraction(14) + size(1) */
-	if (lre_likely(lre_buffer_require(buf, (1+4+14+1), error) == LRE_OK)) {
+	/* tag(1) + integral(16) + exp(4) + fraction(14) + separator(1) */
+	if (lre_likely(lre_buffer_require(buf, (1+16+(4+14)+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
 		int negative = 0;
 
@@ -817,18 +824,21 @@ typedef struct lre_loader_t {
 
 lre_decl
 int lre_loader_default_handler_int(lre_loader_t *loader, int64_t value) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_float(lre_loader_t *loader, double value) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
@@ -836,6 +846,7 @@ int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre
 lre_decl
 int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 	double value = lrex_tag_is_negative(tag) ? -INFINITY : INFINITY;
+	lre_debug("call\n");
 
 	if (lre_likely(loader->handler_float)) {
 		return loader->handler_float(loader, value);
@@ -847,12 +858,14 @@ int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 
 lre_decl
 int lre_loader_default_handler_bigint(lre_loader_t *loader, const lre_metanumber_t *num) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
 lre_decl
 int lre_loader_default_handler_bigfloat(lre_loader_t *loader, const lre_metanumber_t *num) {
+	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
