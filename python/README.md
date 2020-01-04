@@ -6,10 +6,11 @@ Data types:
 * Float
 * +INF and -INF are supported
 
-Limits:
+Limitations:
 * NaN not supported due to ambiguity
-* No difference between 0, -0.0 and +0.0, between 1 and 1.0
-* Big integers are limited by 524280 bits (2^524280 - 1)
+* No difference between 0, -0.0 and +0.0 or between 1 and 1.0
+* Big integers are limited to 524280 bits (2 ** 524280 - 1)
+* Depth of nested lists is limited to 32
 
 ### Installation from source
 
