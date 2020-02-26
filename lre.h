@@ -233,7 +233,7 @@ uint64_t lrex_negate_negative(int64_t value) {
  */
 lre_decl
 lre_tag_t lrex_tag_by_nbytes_positive(int nbytes) {
-	return (LRE_TAG_NUMBER_POSITIVE_1 - 1) + nbytes;
+	return (lre_tag_t) ((int) LRE_TAG_NUMBER_POSITIVE_1 - 1) + nbytes;
 }
 
 
@@ -243,7 +243,7 @@ lre_tag_t lrex_tag_by_nbytes_positive(int nbytes) {
  */
 lre_decl
 lre_tag_t lrex_tag_by_nbytes_negative(int nbytes) {
-	return (LRE_TAG_NUMBER_NEGATIVE_1 + 1) - nbytes;
+	return (lre_tag_t) ((int) LRE_TAG_NUMBER_NEGATIVE_1 + 1) - nbytes;
 }
 
 
@@ -1074,7 +1074,7 @@ int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_erro
 	const uint8_t *end = src + size;
 	
 	while ((sep = lrex_memsep(src, end - sep))) {
-		lre_tag_t   tag   = lrex_read_char(&src);
+		lre_tag_t   tag   = (lre_tag_t) lrex_read_char(&src);
 		lre_slice_t slice = {src, sep};
 
 		src = sep + 1;
