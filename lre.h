@@ -42,11 +42,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #ifdef _MSC_VER
-	#define lre_isnan(x) (_isnan(x))
-	#define lre_isinf(x) (!_finite(x))
+	#ifndef lre_isnan
+		#define lre_isnan(x) (_isnan(x))
+	#endif
+	#ifndef lre_isinf
+		#define lre_isinf(x) (!_finite(x))
+	#endif
 #else
-	#define lre_isnan(x) (isnan(x))
-	#define lre_isinf(x) (isinf(x))
+	#ifndef lre_isnan
+		#define lre_isnan(x) (isnan(x))
+	#endif
+	#ifndef lre_isinf
+		#define lre_isinf(x) (isinf(x))
+	#endif
 #endif
 
 
