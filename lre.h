@@ -568,8 +568,10 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
  */
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
-	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		return lre_buffer_reallocate(buf, buf->size + required, error);
+	size_t capacity = buf->size + required;
+
+	if (lre_unlikely(capacity > buf->capacity)) {
+		return lre_buffer_reallocate(buf, capacity, error);
 	}
 
 	return LRE_OK;
