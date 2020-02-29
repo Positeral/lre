@@ -669,12 +669,11 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_enc_t en
 	if (lre_likely(lre_buffer_require(buf, (1+(len*2)+1+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
 		
-		lrex_write_char(&dst, LRE_TAG_STRING);
-		
 		if (lre_unlikely(!enc)) {
 			enc = LRE_ENC_RAW;
 		}
-		
+
+		lrex_write_char(&dst, LRE_TAG_STRING);
 		lrex_write_str (&dst, src, len, 0);
 		lrex_write_char(&dst, (int) enc);
 		lrex_write_char(&dst, LRE_SEP_POSITIVE);
