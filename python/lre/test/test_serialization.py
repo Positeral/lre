@@ -1,6 +1,11 @@
 import unittest
 import lre
 
+# Disable preallocated buffer
+newlre = lre.LRE(0)
+lre.dumps = newlre.pack
+lre.loads = newlre.load
+
 
 class TestOrder(unittest.TestCase):
     def testTypes(self):
