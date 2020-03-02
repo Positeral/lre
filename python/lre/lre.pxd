@@ -100,7 +100,7 @@ cdef extern from 'lre.h':
 		int32_t        fraction_exponent
 
 	ctypedef struct lre_loader_t:
-		void *app_private;
+		void *app_private
 		int (*handler_int)     (lre_loader_t *loader, int64_t value) except? LRE_FAIL
 		int (*handler_float)   (lre_loader_t *loader, double value)  except? LRE_FAIL
 		int (*handler_str)     (lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) except? LRE_FAIL
