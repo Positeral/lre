@@ -62,7 +62,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define LRE_OK   0
 #define LRE_FAIL 1
 
-#define LRE_EXPONENT_BIAS INT32_C(16383)
+/* Offset from the actual value of fraction exponent */
+#define LRE_EXPONENT_BIAS 16383
 
 
 #if !defined(lre_decl)
