@@ -29,6 +29,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _LRE_H
 #define _LRE_H
 
+#define LRE_VERSION_MINOR 0
+#define LRE_VERSION_MAJOR 3
+#define LRE_VERSION_PATCH 1
+
 #include <stddef.h>
 #include <limits.h>
 #include <string.h>
