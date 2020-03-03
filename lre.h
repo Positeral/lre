@@ -601,6 +601,8 @@ uint8_t *lre_buffer_end(lre_buffer_t *buf) {
  */
 lre_decl
 void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
+	lre_debug("Zero at %i\n", (int) (end - buf->data + 1));
+
 	if (lre_likely(end >= buf->data)) {
 		buf->size = end - buf->data;
 		buf->data[buf->size] = '\0';
