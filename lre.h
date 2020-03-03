@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Portable stdint.h provide cross-compiler
  * type definitions and printf() number modifiers */
- #include "pstdint.h"
+#include "pstdint.h"
 
 
 #ifdef _MSC_VER
