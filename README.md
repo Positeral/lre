@@ -15,7 +15,7 @@ Features:
 Data types:
 * Strings (can be marked as raw or UTF8)
 * Signed 64-bit integers
-* Double float-point
+* Double float-point without precision loss
 * +INF and -INF are supported
 * Big numbers are supported by external assistance
 
@@ -25,6 +25,9 @@ Limitations:
 * Built-in float-point range is -9007199254740991.0, 9007199254740991.0
 * Built-in integer range is -9223372036854775808, 9223372036854775807
 * Due to textual format LRE is not well-suitable for large keys
+
+Other languages:
+* [Python](https://github.com/Positeral/lre/tree/master/python)
 
 #### Serialization
 
