@@ -29,6 +29,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _LRE_H
 #define _LRE_H
 
+#define LRE_VERSION_MINOR 0
+#define LRE_VERSION_MAJOR 3
+#define LRE_VERSION_PATCH 1
+
 #include <stddef.h>
 #include <limits.h>
 #include <string.h>
@@ -38,15 +42,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Portable stdint.h provide cross-compiler
  * type definitions and printf() number modifiers */
- #include "pstdint.h"
+#include "pstdint.h"
 
 
 #ifdef _MSC_VER
-	#define lre_isnan(x) (_isnan(x))
-	#define lre_isinf(x) (!_finite(x))
+	#ifndef lre_isnan
+		#define lre_isnan(x) (_isnan(x))
+	#endif
+	#ifndef lre_isinf
+		#define lre_isinf(x) (!_finite(x))
+	#endif
 #else
-	#define lre_isnan(x) (isnan(x))
-	#define lre_isinf(x) (isinf(x))
+	#ifndef lre_isnan
+		#define lre_isnan(x) (isnan(x))
+	#endif
+	#ifndef lre_isinf
+		#define lre_isinf(x) (isinf(x))
+	#endif
 #endif
 
 
@@ -54,7 +66,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define LRE_OK   0
 #define LRE_FAIL 1
 
-#define LRE_EXPONENT_BIAS INT32_C(16383)
+/* Offset from the actual value of fraction exponent */
+#define LRE_EXPONENT_BIAS 16383
 
 
 #if !defined(lre_decl)
@@ -225,7 +238,7 @@ uint64_t lrex_negate_negative(int64_t value) {
  */
 lre_decl
 lre_tag_t lrex_tag_by_nbytes_positive(int nbytes) {
-	return (LRE_TAG_NUMBER_POSITIVE_1 - 1) + nbytes;
+	return (lre_tag_t) ((int) LRE_TAG_NUMBER_POSITIVE_1 - 1) + nbytes;
 }
 
 
@@ -235,7 +248,7 @@ lre_tag_t lrex_tag_by_nbytes_positive(int nbytes) {
  */
 lre_decl
 lre_tag_t lrex_tag_by_nbytes_negative(int nbytes) {
-	return (LRE_TAG_NUMBER_NEGATIVE_1 + 1) - nbytes;
+	return (lre_tag_t) ((int) LRE_TAG_NUMBER_NEGATIVE_1 + 1) - nbytes;
 }
 
 
@@ -560,8 +573,10 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
  */
 lre_decl
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
-	if (lre_unlikely(buf->size + required > buf->capacity)) {
-		return lre_buffer_reallocate(buf, buf->size + required, error);
+	size_t capacity = buf->size + required + 1;
+
+	if (lre_unlikely(capacity > buf->capacity)) {
+		return lre_buffer_reallocate(buf, capacity, error);
 	}
 
 	return LRE_OK;
@@ -590,6 +605,8 @@ uint8_t *lre_buffer_end(lre_buffer_t *buf) {
  */
 lre_decl
 void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
+	lre_debug("Zero at %i\n", (int) (end - buf->data + 1));
+
 	if (lre_likely(end >= buf->data)) {
 		buf->size = end - buf->data;
 		buf->data[buf->size] = '\0';
@@ -659,12 +676,11 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_enc_t en
 	if (lre_likely(lre_buffer_require(buf, (1+(len*2)+1+1), error) == LRE_OK)) {
 		uint8_t *dst = lre_buffer_end(buf);
 		
-		lrex_write_char(&dst, LRE_TAG_STRING);
-		
 		if (lre_unlikely(!enc)) {
 			enc = LRE_ENC_RAW;
 		}
-		
+
+		lrex_write_char(&dst, LRE_TAG_STRING);
 		lrex_write_str (&dst, src, len, 0);
 		lrex_write_char(&dst, (int) enc);
 		lrex_write_char(&dst, LRE_SEP_POSITIVE);
@@ -1066,7 +1082,7 @@ int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_erro
 	const uint8_t *end = src + size;
 	
 	while ((sep = lrex_memsep(src, end - sep))) {
-		lre_tag_t   tag   = lrex_read_char(&src);
+		lre_tag_t   tag   = (lre_tag_t) lrex_read_char(&src);
 		lre_slice_t slice = {src, sep};
 
 		src = sep + 1;
