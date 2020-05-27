@@ -69,14 +69,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Offset from the actual value of fraction exponent */
 #define LRE_EXPONENT_BIAS 16383
 
-
-#if !defined(lre_decl)
-	#if defined(__cplusplus) || defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-		#define lre_decl static inline
-	#elif defined(_MSC_VER)
-		#define lre_decl static __inline
+#if !defined(lre_inline)
+	#if __GNUC__ || __STDC_VERSION__ >= 199901L
+		#define lre_inline inline
+	#elif _MSC_VER >= 1200
+		#define lre_inline __inline
 	#else
-		#define lre_decl static
+		#define lre_inline
+	#endif
+#endif
+
+#if !defined(lre_noinline)
+	#if __GNUC__ >= 4 || _INTEL_COMPILER >= 1300
+		#define lre_noinline __attribute__((__noinline__))
+	#elif _MSC_VER >= 1310
+		#define lre_noinline __declspec(noinline)
+	#else
+		#define lre_noinline
 	#endif
 #endif
 
@@ -190,7 +199,7 @@ typedef enum {
 } lre_error_t;
 
 
-lre_decl
+lre_inline static
 const char *lre_strerror(lre_error_t error) {
 	switch (error) {
 		case LRE_ERROR_NOTHING:          return "Successful return";
@@ -217,7 +226,7 @@ const char *lre_strerror(lre_error_t error) {
 /**
  * @brief Returns negative value of positive value. Avoids signed overflow.
  */
-lre_decl
+lre_inline static
 int64_t lrex_negate_positive(uint64_t value) {
 	return -((int64_t) (value - 1)) - 1;
 }
@@ -226,7 +235,7 @@ int64_t lrex_negate_positive(uint64_t value) {
 /**
  * @brief Returns positive value of negative value. Avoids signed overflow.
  */
-lre_decl
+lre_inline static
 uint64_t lrex_negate_negative(int64_t value) {
 	return (uint64_t) (-1 - value) + 1;
 }
@@ -236,7 +245,7 @@ uint64_t lrex_negate_negative(int64_t value) {
  * @brief Returns tag for positive number according to number of bytes
  * @param nbytes Number of bytes (lrex_count_nbytes). Strictly from 1 to 8.
  */
-lre_decl
+lre_inline static
 lre_tag_t lrex_tag_by_nbytes_positive(int nbytes) {
 	return (lre_tag_t) ((int) LRE_TAG_NUMBER_POSITIVE_1 - 1) + nbytes;
 }
@@ -246,7 +255,7 @@ lre_tag_t lrex_tag_by_nbytes_positive(int nbytes) {
  * @brief Returns tag for negative number according to number of bytes
  * @param nbytes Number of bytes (lrex_count_nbytes). Strictly from 1 to 8.
  */
-lre_decl
+lre_inline static
 lre_tag_t lrex_tag_by_nbytes_negative(int nbytes) {
 	return (lre_tag_t) ((int) LRE_TAG_NUMBER_NEGATIVE_1 + 1) - nbytes;
 }
@@ -256,7 +265,7 @@ lre_tag_t lrex_tag_by_nbytes_negative(int nbytes) {
  * @brief Returns number of bytes according to positive numeric tag
  * @param numeric_tag Strictly numeric tag
  */
-lre_decl
+lre_inline static
 int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
 	return (int) numeric_tag - ((int) LRE_TAG_NUMBER_POSITIVE_1 - 1);
 }
@@ -266,21 +275,21 @@ int lrex_nbytes_by_tag_positive(lre_tag_t numeric_tag) {
  * @brief Returns number of bytes according to negative numeric tag
  * @param numeric_tag Strictly numeric tag
  */
-lre_decl
+lre_inline static
 int lrex_nbytes_by_tag_negative(lre_tag_t numeric_tag) {
 	return ((int) LRE_TAG_NUMBER_NEGATIVE_1 + 1) - (int) numeric_tag;
 }
 
 
 /* */
-lre_decl
+lre_inline static
 int lrex_tag_is_string(lre_tag_t tag) {
 	return tag == LRE_TAG_STRING;
 }
 
 
 /* */
-lre_decl
+lre_inline static
 int lrex_tag_is_number(lre_tag_t tag) {
 	return
 	(tag >= LRE_TAG_NUMBER_NEGATIVE_INF) &&
@@ -288,7 +297,7 @@ int lrex_tag_is_number(lre_tag_t tag) {
 }
 
 
-lre_decl
+lre_inline static
 int lrex_tag_is_number_big(lre_tag_t tag) {
 	return
 	(tag == LRE_TAG_NUMBER_POSITIVE_BIG) ||
@@ -296,7 +305,7 @@ int lrex_tag_is_number_big(lre_tag_t tag) {
 }
 
 
-lre_decl
+lre_inline static
 int lrex_tag_is_number_inf(lre_tag_t tag) {
 	return
 	(tag == LRE_TAG_NUMBER_POSITIVE_INF) ||
@@ -305,13 +314,13 @@ int lrex_tag_is_number_inf(lre_tag_t tag) {
 
 
 /* */
-lre_decl
+lre_inline static
 int lrex_tag_is_negative(lre_tag_t tag) {
 	return tag < LRE_TAG_NUMBER_POSITIVE_1;
 }
 
 /* */
-lre_decl
+lre_inline static
 int lrex_tag_is_positive(lre_tag_t tag) {
 	return tag > LRE_TAG_NUMBER_NEGATIVE_1;
 }
@@ -322,7 +331,7 @@ int lrex_tag_is_positive(lre_tag_t tag) {
  * @param value Unsigned value
  * @return Number of significant bytes
  */
-lre_decl
+lre_inline static
 int lrex_count_nbytes(uint64_t value) {
 #if defined(__GNUC__) || defined(__clang__)
 	return ((__builtin_clzll(value | 1) ^ 63) >> 3) + 1;
@@ -344,7 +353,7 @@ int lrex_count_nbytes(uint64_t value) {
  * @param value Value. Must NOT be 0
  * @return Integer log2 of value (the result is rounded down)
  */
-lre_decl
+lre_inline static
 int lrex_log2i(uint64_t value) {
 #if defined(__GNUC__) || defined(__clang__)
 	return (__builtin_clzll(value) ^ 63);
@@ -372,27 +381,27 @@ int lrex_log2i(uint64_t value) {
 }
 
 
-lre_decl
+lre_inline static
 void lrex_write_char(uint8_t **dst, uint8_t value) {
 	*(*dst)++ = value;
 }
 
 
-lre_decl
+lre_inline static
 void lrex_write_uint8(uint8_t **dst, uint8_t value) {
 	lrex_write_char(dst, 'a' + (value >> 4));
 	lrex_write_char(dst, 'a' + (value & 0xf));
 }
 
 
-lre_decl
+lre_inline static
 void lrex_write_uint16(uint8_t **dst, uint16_t value) {
 	lrex_write_uint8(dst, value >> 8);
 	lrex_write_uint8(dst, value & 0xff);
 }
 
 
-lre_decl
+lre_inline static
 void lrex_write_uint64n(uint8_t **dst, uint64_t value, size_t nbytes) {
 	while (nbytes--) {
 		int byte = (value >> (nbytes * 8)) & 0xff;
@@ -401,7 +410,7 @@ void lrex_write_uint64n(uint8_t **dst, uint64_t value, size_t nbytes) {
 }
 
 
-lre_decl
+lre_inline static
 void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask) {
 	while (len--) {
 		int byte = *src++ ^ mask;
@@ -410,13 +419,13 @@ void lrex_write_str(uint8_t **dst, const uint8_t *src, size_t len, uint8_t mask)
 }
 
 
-lre_decl
+lre_inline static
 uint8_t lrex_read_char(const uint8_t **src) {
 	return *(*src)++;
 }
 
 
-lre_decl
+lre_inline static
 uint8_t lrex_read_uint8(const uint8_t **src, uint8_t mask) {
 	int a = lrex_read_char(src) - 'a';
 	int b = lrex_read_char(src) - 'a';
@@ -424,7 +433,7 @@ uint8_t lrex_read_uint8(const uint8_t **src, uint8_t mask) {
 }
 
 
-lre_decl
+lre_inline static
 uint16_t lrex_read_uint16(const uint8_t **src, uint8_t mask) {
 	int a = lrex_read_uint8(src, mask);
 	int b = lrex_read_uint8(src, mask);
@@ -432,7 +441,7 @@ uint16_t lrex_read_uint16(const uint8_t **src, uint8_t mask) {
 }
 
 
-lre_decl
+lre_inline static
 uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes, uint8_t mask) {
 	uint64_t value = 0;
 	
@@ -444,7 +453,7 @@ uint64_t lrex_read_uint64n(const uint8_t **src, size_t nbytes, uint8_t mask) {
 }
 
 
-lre_decl
+lre_inline static
 void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mask) {
 	while (nbytes--) {
 		*dst++ = lrex_read_uint8(src, mask);
@@ -452,7 +461,7 @@ void lrex_read_str(const uint8_t **src, uint8_t *dst, size_t nbytes, uint8_t mas
 }
 
 
-lre_decl
+lre_inline static
 const uint8_t *lrex_memsep(const uint8_t *src, size_t size) {
 	for (; size; size--, src++) {
 		if (*src == LRE_SEP_POSITIVE || *src == LRE_SEP_NEGATIVE) {
@@ -475,7 +484,7 @@ typedef struct {
  * @brief Returns length of slice
  * @param slice Pointer to lre_slice_t object
  */
-lre_decl
+lre_inline static
 ptrdiff_t lre_slice_len(const lre_slice_t *slice) {
 	return slice->end - slice->src;
 }
@@ -485,7 +494,7 @@ ptrdiff_t lre_slice_len(const lre_slice_t *slice) {
  * @brief Returns last byte and shifts end of slice
  * @param slice Pointer to lre_slice_t object
  */
-lre_decl
+lre_inline static
 uint8_t lre_slice_pop(lre_slice_t *slice) {
 	return *(--slice->end);
 }
@@ -508,7 +517,7 @@ typedef struct {
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 int lre_buffer_reallocate(lre_buffer_t *buf, size_t capacity, lre_error_t *error) {
 	lre_debug("%i reserved=%i size=%i\n", (int) capacity, (int) buf->reserved, (int) buf->size);
 
@@ -541,7 +550,7 @@ int lre_buffer_reallocate(lre_buffer_t *buf, size_t capacity, lre_error_t *error
  * @param error Pointer to lre_error_t or 0
  * @return Pointer to lre_buffer_t instance if success, 0 otherwise
  */
-lre_decl
+lre_inline static
 lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
 	lre_buffer_t *buf = lre_std_calloc(1, sizeof(lre_buffer_t));
 
@@ -571,7 +580,7 @@ lre_buffer_t *lre_buffer_create(size_t reserve, lre_error_t *error) {
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
 	size_t capacity = buf->size + required + 1;
 
@@ -591,7 +600,7 @@ int lre_buffer_require(lre_buffer_t *buf, size_t required, lre_error_t *error) {
  *
  * @param buf Pointer to lre_buffer_t
  */
-lre_decl
+lre_inline static
 uint8_t *lre_buffer_end(lre_buffer_t *buf) {
 	return buf->data + buf->size;
 }
@@ -603,7 +612,7 @@ uint8_t *lre_buffer_end(lre_buffer_t *buf) {
  * @param end Pointer to buffer data (tupically from lre_buffer_end())
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
 	lre_debug("Zero at %i\n", (int) (end - buf->data + 1));
 
@@ -618,7 +627,7 @@ void lre_buffer_set_size_distance(lre_buffer_t *buf, const uint8_t *end) {
  * @brief Fast version of lre_buffer_reset without memory reallocations.
  * @param buf Pointer to lre_buffer_t
  */
-lre_decl
+lre_inline static
 void lre_buffer_reset_fast(lre_buffer_t *buf) {
 	buf->size = 0;
 	buf->data[0] = '\0';
@@ -631,7 +640,7 @@ void lre_buffer_reset_fast(lre_buffer_t *buf) {
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
 	lre_buffer_reset_fast(buf);
 
@@ -646,7 +655,7 @@ int lre_buffer_reset(lre_buffer_t *buf, lre_error_t *error) {
  * @brief Free all buffer memory
  * @param buf Pointer to lre_buffer_t
  */
-lre_decl
+lre_inline static
 void lre_buffer_close(lre_buffer_t *buf) {
 	lre_debug("%p\n", buf);
 
@@ -670,7 +679,7 @@ void lre_buffer_close(lre_buffer_t *buf) {
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_enc_t enc, lre_error_t *error) {
 	/* tag(1) + string(len*2) + encoding(1) + separator(1) */
 	if (lre_likely(lre_buffer_require(buf, (1+(len*2)+1+1), error) == LRE_OK)) {
@@ -699,7 +708,7 @@ int lre_pack_str(lre_buffer_t *buf, const uint8_t *src, size_t len, lre_enc_t en
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
 	/* tag(1) + value(16) + separator(1) */
 	if (lre_likely(lre_buffer_require(buf, (1+16+1), error) == LRE_OK)) {
@@ -736,7 +745,7 @@ int lre_pack_int(lre_buffer_t *buf, int64_t value, lre_error_t *error) {
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 int lre_pack_float(lre_buffer_t *buf, double value, lre_error_t *error) {
 	if (lre_unlikely(lre_isnan(value))) {
 		return lre_fail(LRE_ERROR_NAN, error);
@@ -838,28 +847,28 @@ typedef struct lre_loader_t {
 } lre_loader_t;
 
 
-lre_decl
+lre_inline static
 int lre_loader_default_handler_int(lre_loader_t *loader, int64_t value) {
 	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
-lre_decl
+lre_inline static
 int lre_loader_default_handler_float(lre_loader_t *loader, double value) {
 	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
-lre_decl
+lre_inline static
 int lre_loader_default_handler_str(lre_loader_t *loader, lre_slice_t *slice, lre_enc_t enc) {
 	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
-lre_decl
+lre_inline static
 int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 	double value = lrex_tag_is_negative(tag) ? -INFINITY : INFINITY;
 	lre_debug("call\n");
@@ -872,21 +881,21 @@ int lre_loader_default_handler_inf(lre_loader_t *loader, lre_tag_t tag) {
 }
 
 
-lre_decl
+lre_inline static
 int lre_loader_default_handler_bigint(lre_loader_t *loader, const lre_metanumber_t *num) {
 	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
-lre_decl
+lre_inline static
 int lre_loader_default_handler_bigfloat(lre_loader_t *loader, const lre_metanumber_t *num) {
 	lre_debug("call\n");
 	return LRE_FAIL;
 }
 
 
-lre_decl
+lre_inline static
 void lre_loader_init(lre_loader_t *loader, void *app_private) {
 	loader->app_private      = app_private;
 
@@ -899,7 +908,7 @@ void lre_loader_init(lre_loader_t *loader, void *app_private) {
 }
 
 
-lre_decl // TODO
+lre_inline static
 int lre_load_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
 	lre_enc_t encoding;
 	
@@ -924,7 +933,7 @@ int lre_load_string(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
 }
 
 
-lre_decl
+lre_inline static
 int lrex_load_number_integer(lre_loader_t *loader, const lre_metanumber_t *num, lre_error_t *error) {
 	uint64_t integral;
 	const uint8_t *src = num->integral_data;
@@ -962,7 +971,7 @@ int lrex_load_number_integer(lre_loader_t *loader, const lre_metanumber_t *num, 
 }
 
 
-lre_decl
+lre_inline static
 int lrex_load_number_float(lre_loader_t *loader, const lre_metanumber_t *num, lre_error_t *error) {
 	uint64_t integral;
 	uint64_t fraction;
@@ -1019,7 +1028,7 @@ handle_bigfloat:
 }
 
 
-lre_decl // TODO
+lre_inline static
 int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre_error_t *error) {
 	lre_metanumber_t num = {0};
 
@@ -1076,7 +1085,7 @@ int lre_load_number(lre_loader_t *loader, lre_tag_t tag, lre_slice_t *slice, lre
  * @param error Pointer to lre_error_t or 0
  * @return LRE_OK if success, LRE_FAIL otherwise
  */
-lre_decl
+lre_inline static
 int lre_tokenize(lre_loader_t *loader, const uint8_t *src, size_t size, lre_error_t *error) {
 	const uint8_t *sep = src;
 	const uint8_t *end = src + size;
