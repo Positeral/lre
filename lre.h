@@ -1,7 +1,7 @@
 /*
 BSD 2-Clause License
 
-Copyright (c) 2020, Arthur Goncharuk
+Copyright (c) 2020, Arthur Goncharuk <af3.inet@gmail.com>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
