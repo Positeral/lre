@@ -199,7 +199,7 @@ typedef enum {
 } lre_error_t;
 
 
-lre_inline static
+lre_noinline static
 const char *lre_strerror(lre_error_t error) {
 	switch (error) {
 		case LRE_ERROR_NOTHING:          return "Successful return";
